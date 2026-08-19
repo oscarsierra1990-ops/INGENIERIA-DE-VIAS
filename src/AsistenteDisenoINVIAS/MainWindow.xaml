@@ -1,0 +1,120 @@
+<UserControl x:Class="AsistenteDisenoINVIAS.MainWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="760" d:DesignWidth="380"
+             Background="#1E1E1E" Foreground="White">
+    <UserControl.Resources>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#555555"/>
+            <Setter Property="Padding" Value="6,3"/>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#252526"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3E3E42"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#007ACC"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#094771"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <TabControl Background="#2D2D30" BorderBrush="#3F3F46" Foreground="White">
+
+            <TabItem Header="1. Planta" Foreground="White" Background="#2D2D30">
+                <StackPanel Margin="10">
+                    <TextBlock Text="Diseño Geométrico en Planta (INVIAS)" FontSize="14" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
+                    <TextBlock Text="Categoría de la Carretera:" Margin="0,4,0,2"/>
+                    <ComboBox x:Name="CmbCategoriaVia" Height="28" SelectionChanged="CmbNormativa_SelectionChanged">
+                        <ComboBoxItem Content="Primaria de dos calzadas"/>
+                        <ComboBoxItem Content="Primaria de una calzada"/>
+                        <ComboBoxItem Content="Secundaria"/>
+                        <ComboBoxItem Content="Terciaria" IsSelected="True"/>
+                    </ComboBox>
+                    <TextBlock Text="Tipo de Terreno:" Margin="0,8,0,2"/>
+                    <ComboBox x:Name="CmbTipoTerreno" Height="28" SelectionChanged="CmbNormativa_SelectionChanged">
+                        <ComboBoxItem Content="Plano (P)"/>
+                        <ComboBoxItem Content="Ondulado (O)"/>
+                        <ComboBoxItem Content="Montañoso (M)" IsSelected="True"/>
+                        <ComboBoxItem Content="Escarpado (E)"/>
+                    </ComboBox>
+                    <TextBlock Text="Velocidad Específica Vtr (km/h):" Margin="0,8,0,2"/>
+                    <ComboBox x:Name="CmbVtr" Height="28">
+                        <ComboBoxItem Content="20"/>
+                        <ComboBoxItem Content="30" IsSelected="True"/>
+                        <ComboBoxItem Content="40"/>
+                        <ComboBoxItem Content="50"/>
+                        <ComboBoxItem Content="60"/>
+                        <ComboBoxItem Content="70"/>
+                        <ComboBoxItem Content="80"/>
+                        <ComboBoxItem Content="90"/>
+                        <ComboBoxItem Content="100"/>
+                        <ComboBoxItem Content="110"/>
+                        <ComboBoxItem Content="120"/>
+                        <ComboBoxItem Content="130"/>
+                    </ComboBox>
+                    <Button x:Name="BtnSelectPolyline" Content="🎯 Seleccionar Polilínea de Eje" Height="34" Margin="0,15,0,5" Click="BtnSelectPolyline_Click" Background="#007ACC" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                    <Button x:Name="BtnProcesarPlanta" Content="⚡ Procesar Planta y Cuadro INVIAS" Height="34" Margin="0,5,0,0" Click="BtnProcesarPlanta_Click" Background="#28A745" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                    <TextBlock Text="Si una curva no cumple el radio mínimo, el asistente PROPONE el trazado: amplía automáticamente su radio hasta el mínimo normativo (se documenta en la Memoria); el resto del trazado dibujado se respeta." Margin="0,8,0,0" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="2. Perfil &amp; Rasante" Foreground="White" Background="#2D2D30">
+                <StackPanel Margin="10">
+                    <TextBlock Text="Diseño Altimétrico de Rasante" FontSize="14" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
+                    <TextBlock Text="Superficie Terreno Natural (MDT):" Margin="0,4,0,2"/>
+                    <ComboBox x:Name="CmbSuperficies" Height="28" Loaded="CmbSuperficies_Loaded" DropDownOpened="CmbSuperficies_DropDownOpened"/>
+                    <TextBlock Text="⚠️ La rasante se PROPONE, no solo se valida:" Margin="0,12,0,2" Foreground="#E2C044" FontWeight="Bold" TextWrapping="Wrap"/>
+                    <TextBlock Text="• Pendiente máxima respetada (Tabla 4.2)" Margin="0,2,0,2" Foreground="#CCCCCC" FontSize="11"/>
+                    <TextBlock Text="• Curvas dimensionadas por comodidad (K·A) y visibilidad de parada (AASHTO); nunca se recortan" Margin="0,0,0,2" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
+                    <TextBlock Text="• Si un quiebre no cabe con entretangencia mínima (Tabla 4.3), se omite y el tramo queda recto" Margin="0,0,0,15" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
+                    <Button x:Name="BtnProcesarPerfil" Content="🛣️ Construir Esqueleto y Rasante C3D" Height="36" Click="BtnProcesarPerfil_Click" Background="#28A745" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="3. Transversales" Foreground="White" Background="#2D2D30">
+                <StackPanel Margin="10">
+                    <TextBlock Text="Peraltes y Bordes de Vía (INVIAS)" FontSize="14" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
+                    <TextBlock Text="Ancho de Carril (m):" Margin="0,4,0,2"/>
+                    <TextBox x:Name="TxtAnchoCarril" Text="3.65" Height="28" Background="#1E1E1E" Foreground="White" BorderBrush="#555555" Padding="4,0" VerticalContentAlignment="Center"/>
+                    <TextBlock Text="Vehículo de Diseño:" Margin="0,8,0,2"/>
+                    <ComboBox x:Name="CmbVehiculo" Height="28">
+                        <ComboBoxItem Content="C2 (Camiones / Buses) | L = 6.1m"/>
+                        <ComboBoxItem Content="C3 (Camión 3 Ejes) | L = 7.5m"/>
+                        <ComboBoxItem Content="T3-S2 (Tractocamión) | L = 10.5m" IsSelected="True"/>
+                    </ComboBox>
+                    <TextBlock Text="⚠️ Resoluciones Automáticas:" Margin="0,12,0,2" Foreground="#E2C044" FontWeight="Bold"/>
+                    <TextBlock Text="• Fórmula Sobreanchos Oficial Aplicada." Margin="0,2,0,2" Foreground="#CCCCCC" FontSize="11"/>
+                    <TextBlock Text="• Transición 2/3-1/3 (Sin muescas a 90°)." Margin="0,0,0,2" Foreground="#CCCCCC" FontSize="11"/>
+                    <TextBlock Text="• Peraltes nativos emparejados por estación real (no por posición)." Margin="0,0,0,15" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
+                    <Button x:Name="BtnProcesarTransversal" Content="📐 Calcular Sobreancho / Peralte y Bordes" Height="36" Click="BtnProcesarTransversal_Click" Background="#17A2B8" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                    <Button x:Name="BtnGenerarCorredor" Content="🏗️ Generar Corredor Nativo (Opcional)" Height="34" Margin="0,8,0,0" Click="BtnGenerarCorredor_Click" Background="#6F42C1" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                    <TextBlock Text="Requiere Planta y Perfil ya procesados. Si el catálogo de subensambles no está disponible, los bordes de vía quedan igualmente representados por los alineamientos de desfase de la Pestaña 3." Margin="0,6,0,0" Foreground="#CCCCCC" FontSize="10" TextWrapping="Wrap"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="4. Memoria" Foreground="White" Background="#2D2D30">
+                <StackPanel Margin="10">
+                    <TextBlock Text="Memoria Descriptiva de Diseño" FontSize="14" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
+                    <TextBlock Text="Genera un documento Word (.docx) con los parámetros de entrada, los resultados de planta, perfil y sección transversal, y la justificación normativa de cada decisión adoptada durante esta sesión." Margin="0,0,0,12" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="TxtEstadoMemoria" Text="Estado: sin procesar." Margin="0,0,0,12" Foreground="#E2C044" FontSize="11" TextWrapping="Wrap"/>
+                    <Button x:Name="BtnGenerarMemoria" Content="📄 Generar Memoria Descriptiva (Word)" Height="36" Click="BtnGenerarMemoria_Click" Background="#D9822B" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                </StackPanel>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</UserControl>
