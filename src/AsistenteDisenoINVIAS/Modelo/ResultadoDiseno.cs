@@ -15,6 +15,10 @@ namespace AsistenteDisenoINVIAS.Modelo
         public List<DatosCurvaVertical> CurvasVerticales { get; set; } = new List<DatosCurvaVertical>();
         public List<string> Advertencias { get; set; } = new List<string>();
         public List<string> ElementosNativosGenerados { get; set; } = new List<string>();
+        /// <summary>Ajustes que el asistente propuso y aplicó de forma autónoma
+        /// sobre el trazado (planta y/o perfil) para que cumpla la normativa,
+        /// con su justificación. Se documentan íntegramente en la memoria.</summary>
+        public List<string> DecisionesDiseno { get; set; } = new List<string>();
 
         public bool PlantaProcesada { get; set; }
         public bool PerfilProcesado { get; set; }
@@ -29,6 +33,11 @@ namespace AsistenteDisenoINVIAS.Modelo
         public void RegistrarElementoNativo(string mensaje)
         {
             ElementosNativosGenerados.Add(mensaje);
+        }
+
+        public void RegistrarDecision(string mensaje)
+        {
+            if (!DecisionesDiseno.Contains(mensaje)) DecisionesDiseno.Add(mensaje);
         }
     }
 }

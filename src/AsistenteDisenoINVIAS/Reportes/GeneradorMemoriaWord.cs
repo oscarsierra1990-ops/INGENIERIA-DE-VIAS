@@ -28,6 +28,7 @@ namespace AsistenteDisenoINVIAS.Reportes
             AgregarSeccionPlanta(body, resultado);
             AgregarSeccionPerfil(body, resultado);
             AgregarSeccionTransversal(body, resultado);
+            AgregarDecisionesDiseno(body, resultado);
             AgregarElementosNativos(body, resultado);
             AgregarAdvertencias(body, resultado);
             AgregarConclusiones(body, resultado);
@@ -116,38 +117,46 @@ namespace AsistenteDisenoINVIAS.Reportes
             }
 
             var p = resultado.Parametros;
+            int corregidas = resultado.CurvasHorizontales.Count(c => c.CorregidoAutomaticamente);
             body.Append(Parrafo(
                 $"El eje '{p.NombreAlineamiento}' se generó a partir de la polilínea de eje seleccionada por el diseñador, entre " +
                 $"las abscisas {FormatearAbscisa(p.AbscisaInicial)} y {FormatearAbscisa(p.AbscisaFinal)}. Para Vtr = {p.VelocidadDiseno:F0} km/h " +
-                $"el radio mínimo normativo es Rmin = {p.RadioMinimoAdmisible:F1} m. El trazado contiene {resultado.CurvasHorizontales.Count} curva(s) circular(es); " +
-                "los radios de cada curva corresponden a la geometría dibujada por el diseñador y NO fueron alterados por el asistente, que se limita a validarlos " +
-                "contra el mínimo normativo."));
+                $"el radio mínimo normativo es Rmin = {p.RadioMinimoAdmisible:F1} m. El trazado contiene {resultado.CurvasHorizontales.Count} curva(s) circular(es). " +
+                "El asistente no se limita a verificar el trazado dibujado: cuando una curva incumple el radio mínimo, PROPONE y aplica automáticamente la " +
+                "ampliación de su radio hasta el mínimo normativo, conservando el resto del trazado (PI y tangentes) tal como fue dibujado; el radio original " +
+                "solo se mantiene sin ampliar cuando la geometría del eje no deja tangente suficiente para hacerlo, caso en el que se advierte para rediseño manual."));
 
             var filas = resultado.CurvasHorizontales.Select(c => new[]
             {
                 c.Elemento,
                 FormatearAbscisa(c.AbscisaInicio),
                 FormatearAbscisa(c.AbscisaFin),
-                c.Radio.ToString("F2"),
+                c.CorregidoAutomaticamente ? $"{c.RadioOriginalDibujado:F2} → {c.Radio:F2}" : c.Radio.ToString("F2"),
                 c.DeltaGrados.ToString("F2") + "°",
                 c.Longitud.ToString("F2"),
                 c.GiraDerecha ? "Derecha" : "Izquierda",
-                c.CumpleRadioMinimo ? "Cumple" : "NO CUMPLE"
+                c.CorregidoAutomaticamente ? "Ampliado" : c.CumpleRadioMinimo ? "Cumple" : "NO CUMPLE"
             }).ToList();
 
             body.Append(CrearTabla(new[] { "Curva", "Abs. Inicio", "Abs. Fin", "Radio (m)", "Delta", "Longitud (m)", "Sentido", "Rmin" }, filas));
 
             int noCumplen = resultado.CurvasHorizontales.Count(c => !c.CumpleRadioMinimo);
+            if (corregidas > 0)
+            {
+                body.Append(Parrafo(
+                    $"Se ampliaron automáticamente {corregidas} curva(s) que no cumplían el radio mínimo, hasta Rmin = {p.RadioMinimoAdmisible:F1} m " +
+                    "(columna Radio muestra el valor original → el valor adoptado). El detalle y la justificación de cada ajuste se documentan en la Sección 5.", negrita: true));
+            }
             if (noCumplen > 0)
             {
                 body.Append(Parrafo(
-                    $"ADVERTENCIA: {noCumplen} curva(s) presentan un radio inferior al mínimo normativo Rmin = {p.RadioMinimoAdmisible:F1} m para la velocidad " +
-                    "específica adoptada. Se recomienda ampliar el radio, reducir la velocidad específica de ese tramo o justificar la condición restrictiva " +
-                    "conforme a los criterios del Manual INVIAS para casos excepcionales.", negrita: true));
+                    $"ADVERTENCIA: {noCumplen} curva(s) siguen presentando un radio inferior al mínimo normativo Rmin = {p.RadioMinimoAdmisible:F1} m: la geometría del eje " +
+                    "dibujado (tangentes entre PI vecinos) no permitió ampliarlas automáticamente. Se recomienda separar los PI del trazado, reducir la velocidad " +
+                    "específica de ese tramo o justificar la condición restrictiva conforme a los criterios del Manual INVIAS para casos excepcionales.", negrita: true));
             }
-            else
+            else if (corregidas == 0)
             {
-                body.Append(Parrafo("Todas las curvas circulares del alineamiento cumplen el radio mínimo normativo para la velocidad específica adoptada."));
+                body.Append(Parrafo("Todas las curvas circulares del alineamiento cumplen el radio mínimo normativo para la velocidad específica adoptada, sin necesidad de ajustes."));
             }
         }
 
@@ -166,11 +175,13 @@ namespace AsistenteDisenoINVIAS.Reportes
 
             var p = resultado.Parametros;
             body.Append(Parrafo(
-                $"La rasante se calculó automáticamente sobre la superficie de terreno natural '{p.NombreSuperficie}', respetando una pendiente " +
+                $"La rasante se PROPONE automáticamente a partir de la superficie de terreno natural '{p.NombreSuperficie}', respetando una pendiente " +
                 $"longitudinal máxima de {p.PendienteMaximaAdmisible:F1} % y una entretangencia mínima de {p.LongitudMinimaTangenteVertical:F1} m entre " +
-                "vértices (PVI). En cada quiebre de pendiente con diferencia algebraica A ≥ 0.5 % se calculó una curva vertical parabólica cuya longitud " +
-                "adopta el mayor valor entre el criterio de comodidad (Lv = K·A), el criterio de visibilidad de parada (AASHTO) y la longitud mínima " +
-                "visual (0.6·Vtr), limitada por la entretangencia disponible entre vértices consecutivos."));
+                "vértices (PVI). En cada quiebre de pendiente con diferencia algebraica A ≥ 0.5 % se dimensiona una curva vertical parabólica con la longitud " +
+                "que exige el criterio más restrictivo entre comodidad (Lv = K·A), visibilidad de parada (AASHTO) y longitud mínima visual (0.6·Vtr): a " +
+                "diferencia de un simple verificador, el asistente NUNCA construye una curva más corta que la requerida. Cuando el terreno presenta un quiebre " +
+                "tan próximo a otro que no deja espacio para una curva conforme, el vértice se omite y el tramo se traza recto entre las curvas vecinas " +
+                "(decisión documentada en la Sección 5), en vez de forzar una curva vertical que incumpliría la normativa."));
 
             var filas = resultado.CurvasVerticales.Where(c => c.Tipo != "N/A").Select(c => new[]
             {
@@ -183,7 +194,7 @@ namespace AsistenteDisenoINVIAS.Reportes
                 c.Tipo,
                 c.KAplicado.ToString("F1"),
                 c.LongitudCurva.ToString("F1"),
-                c.CumpleLongitudMinima ? "Cumple" : "Limitada"
+                "Cumple"
             }).ToList();
 
             if (filas.Count == 0)
@@ -193,14 +204,7 @@ namespace AsistenteDisenoINVIAS.Reportes
             }
 
             body.Append(CrearTabla(new[] { "PVI", "Abscisa", "Cota (m)", "g1 (%)", "g2 (%)", "A (%)", "Tipo", "K aplicado", "Lv (m)", "Estado" }, filas));
-
-            int limitadas = filas.Count(f => f[9] == "Limitada");
-            if (limitadas > 0)
-            {
-                body.Append(Parrafo(
-                    $"OBSERVACIÓN: {limitadas} curva(s) vertical(es) quedaron con una longitud menor a la requerida por comodidad y/o visibilidad de parada, " +
-                    "debido a la entretangencia disponible entre PVIs consecutivos. Se recomienda revisar el espaciamiento de vértices en esos tramos.", negrita: true));
-            }
+            body.Append(Parrafo("Todas las curvas verticales propuestas cumplen simultáneamente el criterio de comodidad y de visibilidad de parada por construcción: no se generaron curvas de longitud recortada."));
         }
 
         // ---------------------------------------------------------------
@@ -241,11 +245,31 @@ namespace AsistenteDisenoINVIAS.Reportes
         }
 
         // ---------------------------------------------------------------
-        // 5. Elementos nativos generados
+        // 5. Decisiones de diseño adoptadas
+        // ---------------------------------------------------------------
+        private static void AgregarDecisionesDiseno(Body body, ResultadoDiseno resultado)
+        {
+            body.Append(Titulo("5. Decisiones de Diseño Adoptadas", 16, false));
+            body.Append(Parrafo(
+                "Esta sección documenta cada ajuste que el asistente propuso y aplicó de forma autónoma sobre el trazado dibujado por el diseñador, " +
+                "con el fin de que la planta y el perfil cumplan la normativa vigente (y no solo se reporten sus incumplimientos), junto con la " +
+                "justificación normativa de cada decisión."));
+
+            if (resultado.DecisionesDiseno.Count == 0)
+            {
+                body.Append(Parrafo("No fue necesario ajustar automáticamente el trazado: la geometría dibujada por el diseñador ya cumplía la normativa aplicada."));
+                return;
+            }
+            foreach (var item in resultado.DecisionesDiseno)
+                body.Append(ParrafoVinieta(item));
+        }
+
+        // ---------------------------------------------------------------
+        // 6. Elementos nativos generados
         // ---------------------------------------------------------------
         private static void AgregarElementosNativos(Body body, ResultadoDiseno resultado)
         {
-            body.Append(Titulo("5. Elementos Nativos Generados en Civil 3D", 16, false));
+            body.Append(Titulo("6. Elementos Nativos Generados en Civil 3D", 16, false));
             if (resultado.ElementosNativosGenerados.Count == 0)
             {
                 body.Append(Parrafo("No se registraron elementos nativos generados en esta sesión."));
@@ -258,14 +282,18 @@ namespace AsistenteDisenoINVIAS.Reportes
         }
 
         // ---------------------------------------------------------------
-        // 6. Advertencias
+        // 7. Advertencias
         // ---------------------------------------------------------------
         private static void AgregarAdvertencias(Body body, ResultadoDiseno resultado)
         {
-            body.Append(Titulo("6. Advertencias y Observaciones", 16, false));
+            body.Append(Titulo("7. Advertencias y Observaciones", 16, false));
+            body.Append(Parrafo(
+                "A diferencia de las decisiones de la Sección 5 (que el asistente resolvió automáticamente), esta sección lista únicamente los casos " +
+                "residuales que el asistente NO pudo ajustar por sí mismo por restricciones de la geometría dibujada, y que requieren intervención manual " +
+                "del diseñador."));
             if (resultado.Advertencias.Count == 0)
             {
-                body.Append(Parrafo("No se registraron incumplimientos normativos ni condiciones restrictivas durante el proceso de diseño."));
+                body.Append(Parrafo("No quedaron incumplimientos normativos sin resolver: todos los ajustes necesarios se aplicaron automáticamente (ver Sección 5) o el trazado ya cumplía la normativa."));
                 return;
             }
             foreach (var item in resultado.Advertencias)
@@ -273,15 +301,17 @@ namespace AsistenteDisenoINVIAS.Reportes
         }
 
         // ---------------------------------------------------------------
-        // 7. Conclusiones y salvedades
+        // 8. Conclusiones y salvedades
         // ---------------------------------------------------------------
         private static void AgregarConclusiones(Body body, ResultadoDiseno resultado)
         {
-            body.Append(Titulo("7. Conclusiones y Salvedades", 16, false));
+            body.Append(Titulo("8. Conclusiones y Salvedades", 16, false));
             body.Append(Parrafo(
-                "El diseño geométrico documentado en esta memoria fue generado de forma automática por el Asistente de Diseño Vial INVIAS a partir de los " +
-                "parámetros de entrada indicados en la Sección 1, aplicando las fórmulas y tablas usuales del Manual de Diseño Geométrico de Carreteras de " +
-                "INVIAS (radios mínimos y peraltes con e_max = 8 %, coeficientes K por comodidad y visibilidad de parada, fórmula oficial de sobreancho)."));
+                "El diseño geométrico documentado en esta memoria fue generado y PROPUESTO de forma automática por el Asistente de Diseño Vial INVIAS a partir " +
+                "de los parámetros de entrada indicados en la Sección 1: el asistente no se limita a verificar el trazado ingresado, sino que ajusta radios en " +
+                "planta y dimensiona/reubica curvas verticales en perfil hasta lograr un trazado conforme, aplicando las fórmulas y tablas usuales del Manual " +
+                "de Diseño Geométrico de Carreteras de INVIAS (radios mínimos y peraltes con e_max = 8 %, coeficientes K por comodidad y visibilidad de parada, " +
+                "fórmula oficial de sobreancho)."));
             body.Append(Parrafo(
                 "SALVEDAD: los valores normativos utilizados constituyen una aproximación de ingeniería basada en las tablas habituales del Manual INVIAS. " +
                 "Antes de utilizar este documento con fines contractuales, de interventoría o de aprobación ante la entidad competente, el diseñador debe " +

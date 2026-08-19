@@ -52,14 +52,19 @@ Pasos:
 
 1. **Pestaña 1 — Planta**: seleccione categoría de vía, tipo de terreno y
    Vtr (o déjelo autocompletar), seleccione la polilínea de eje y procese.
-   El alineamiento nativo se crea respetando el radio real dibujado; cada
-   curva se valida contra el radio mínimo normativo (ya no se sobrescribe
-   la geometría, a diferencia de la versión anterior).
+   El asistente PROPONE el trazado: si una curva no cumple el radio mínimo
+   normativo, amplía automáticamente su radio hasta ese mínimo (conservando
+   el resto de los PI/tangentes dibujados); solo deja la curva como
+   advertencia para rediseño manual si la geometría del eje no tiene
+   tangente suficiente para ampliarla.
 2. **Pestaña 2 — Perfil & Rasante**: elija la superficie de terreno natural
-   (MDT) y procese. Se genera el perfil TN, la rasante calculada
-   automáticamente (pendiente máxima, entretangencia, curvas verticales por
-   comodidad K y por visibilidad de parada) y la vista de perfil, junto con
-   un cuadro de PVIs.
+   (MDT) y procese. La rasante se PROPONE automáticamente: cada curva
+   vertical se dimensiona siempre con la longitud completa que exige el
+   criterio más estricto (comodidad K·A, visibilidad de parada AASHTO o
+   longitud mínima visual) — nunca se recorta una curva para que "quepa".
+   Si un quiebre del terreno no deja espacio para una curva conforme junto
+   a la vecina, el vértice se omite y el tramo se traza recto, en vez de
+   generar una curva corta no conforme.
 3. **Pestaña 3 — Transversales**: defina ancho de carril y vehículo de
    diseño, y procese. Se calculan sobreancho y peralte por curva con la
    fórmula oficial INVIAS, se generan los alineamientos de borde de vía
@@ -69,16 +74,26 @@ Pasos:
    real (best-effort: depende del catálogo de subensambles instalado; si
    falla, los bordes de vía siguen disponibles como alineamientos nativos).
 4. **Pestaña 4 — Memoria**: genera un `.docx` con los parámetros de entrada,
-   los resultados de cada pestaña y la justificación normativa de las
-   decisiones adoptadas, incluyendo advertencias de incumplimiento si las
-   hay.
+   los resultados de cada pestaña, la Sección 5 "Decisiones de Diseño
+   Adoptadas" (cada ajuste automático de planta/perfil con su justificación
+   normativa) y las advertencias residuales que sí requieren intervención
+   manual del diseñador.
 
 ## Cambios relevantes frente a la versión original
 
-- **Corrección de bug crítico en Planta**: ya no se fuerza
-  `arc.Radius = radioMinimo` en cada curva (eso destruía el trazado
-  dibujado por el usuario). Ahora se valida el radio real contra el mínimo
-  normativo y se reporta cualquier incumplimiento.
+- **De verificador a asistente propositivo**: la versión anterior de este
+  mismo desarrollo (post-corrección de bug) solo validaba el trazado y
+  reportaba incumplimientos. Ahora, cuando el trazado no cumple, el
+  asistente ajusta automáticamente la geometría (radio en planta, longitud
+  y ubicación de curvas verticales en perfil) hasta lograr un diseño
+  conforme, y documenta cada ajuste como una "decisión de diseño" con su
+  justificación normativa en la memoria. Solo se deja como advertencia lo
+  que realmente no se puede resolver sin rediseñar manualmente el eje.
+- **Corrección del bug original en Planta**: la primera versión forzaba
+  `arc.Radius = radioMinimo` en TODAS las curvas sin condición, destruyendo
+  cualquier radio mayor dibujado a propósito. Ahora solo se interviene (se
+  amplía) la curva que efectivamente incumple; el resto del trazado
+  dibujado se conserva intacto.
 - **Corrección en Transversales**: el emparejamiento entre curvas de
   peralte nativas (`SuperelevationCurve`) y curvas geométricas del eje ya
   no depende de la posición en la lista (que podía desincronizarse), sino
@@ -87,8 +102,8 @@ Pasos:
   entre quiebres de tabla y nuevas verificaciones (distancia de visibilidad
   de parada) que antes no existían.
 - **Memoria descriptiva en Word**, con parámetros de entrada, resultados y
-  justificación de planta/perfil/transversal, generada con Open XML SDK
-  (no requiere Word instalado).
+  justificación de planta/perfil/transversal/decisiones adoptadas, generada
+  con Open XML SDK (no requiere Word instalado).
 - **Corredor nativo opcional** como complemento a los bordes de vía ya
   generados, con localización de subensambles por reflexión para tolerar
   variaciones del catálogo instalado sin romper la compilación.

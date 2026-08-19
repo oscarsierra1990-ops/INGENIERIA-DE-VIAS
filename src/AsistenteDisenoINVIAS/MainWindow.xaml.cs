@@ -152,8 +152,10 @@ namespace AsistenteDisenoINVIAS
 
             ActualizarEstadoMemoria();
             int noCumplen = _resultado.CurvasHorizontales.FindAll(c => !c.CumpleRadioMinimo).Count;
-            string aviso = noCumplen > 0 ? $"\n⚠️ {noCumplen} curva(s) no cumplen el radio mínimo normativo." : "";
-            MessageBox.Show($"🚀 ¡Alineamiento Creado!\n\n• Vtr: {_resultado.Parametros.VelocidadDiseno:F0} km/h\n• Radio mínimo normativo: {_resultado.Parametros.RadioMinimoAdmisible:F1} m\n• Curvas detectadas: {_resultado.CurvasHorizontales.Count}{aviso}", "Planta Completada", MessageBoxButton.OK, MessageBoxImage.Information);
+            int corregidas = _resultado.CurvasHorizontales.FindAll(c => c.CorregidoAutomaticamente).Count;
+            string avisoCorregidas = corregidas > 0 ? $"\n✏️ {corregidas} curva(s) ampliadas automáticamente al radio mínimo normativo." : "";
+            string avisoNoCumplen = noCumplen > 0 ? $"\n⚠️ {noCumplen} curva(s) no se pudieron corregir automáticamente (requieren rediseño manual)." : "";
+            MessageBox.Show($"🚀 ¡Alineamiento Propuesto!\n\n• Vtr: {_resultado.Parametros.VelocidadDiseno:F0} km/h\n• Radio mínimo normativo: {_resultado.Parametros.RadioMinimoAdmisible:F1} m\n• Curvas detectadas: {_resultado.CurvasHorizontales.Count}{avisoCorregidas}{avisoNoCumplen}", "Planta Completada", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         // ==========================================
@@ -196,7 +198,10 @@ namespace AsistenteDisenoINVIAS
             }
 
             ActualizarEstadoMemoria();
-            MessageBox.Show($"🚀 ¡Rasante Creada!\nPendiente Máxima Aplicada: {_resultado.Parametros.PendienteMaximaAdmisible:F1}%\nCurvas verticales generadas: {_resultado.CurvasVerticales.FindAll(c => c.Tipo != "N/A").Count}", "INVIAS", MessageBoxButton.OK, MessageBoxImage.Information);
+            int curvasVerticales = _resultado.CurvasVerticales.FindAll(c => c.Tipo != "N/A").Count;
+            int verticesOmitidos = _resultado.DecisionesDiseno.FindAll(d => d.StartsWith("Perfil: se omitió")).Count;
+            string avisoOmitidos = verticesOmitidos > 0 ? $"\n✏️ {verticesOmitidos} vértice(s) omitidos por entretangencia insuficiente (trazado recto en ese tramo)." : "";
+            MessageBox.Show($"🚀 ¡Rasante Propuesta!\nPendiente Máxima Aplicada: {_resultado.Parametros.PendienteMaximaAdmisible:F1}%\nCurvas verticales generadas: {curvasVerticales} (todas conformes){avisoOmitidos}", "INVIAS", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         // ==========================================

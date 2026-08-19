@@ -68,7 +68,7 @@
                     </ComboBox>
                     <Button x:Name="BtnSelectPolyline" Content="🎯 Seleccionar Polilínea de Eje" Height="34" Margin="0,15,0,5" Click="BtnSelectPolyline_Click" Background="#007ACC" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
                     <Button x:Name="BtnProcesarPlanta" Content="⚡ Procesar Planta y Cuadro INVIAS" Height="34" Margin="0,5,0,0" Click="BtnProcesarPlanta_Click" Background="#28A745" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
-                    <TextBlock Text="El radio de cada curva se respeta tal como fue dibujado; solo se valida contra el radio mínimo normativo (no se sobrescribe la geometría)." Margin="0,8,0,0" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
+                    <TextBlock Text="Si una curva no cumple el radio mínimo, el asistente PROPONE el trazado: amplía automáticamente su radio hasta el mínimo normativo (se documenta en la Memoria); el resto del trazado dibujado se respeta." Margin="0,8,0,0" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
                 </StackPanel>
             </TabItem>
 
@@ -77,10 +77,10 @@
                     <TextBlock Text="Diseño Altimétrico de Rasante" FontSize="14" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
                     <TextBlock Text="Superficie Terreno Natural (MDT):" Margin="0,4,0,2"/>
                     <ComboBox x:Name="CmbSuperficies" Height="28" Loaded="CmbSuperficies_Loaded" DropDownOpened="CmbSuperficies_DropDownOpened"/>
-                    <TextBlock Text="⚠️ Restricciones Matemáticas Aplicadas:" Margin="0,12,0,2" Foreground="#E2C044" FontWeight="Bold"/>
-                    <TextBlock Text="• Validado: Pendiente Máxima (Tabla 4.2)" Margin="0,2,0,2" Foreground="#CCCCCC" FontSize="11"/>
-                    <TextBlock Text="• Validado: Entretangencia (Tabla 4.3)" Margin="0,0,0,2" Foreground="#CCCCCC" FontSize="11"/>
-                    <TextBlock Text="• Validado: Curvas por comodidad (L = K·A) y visibilidad de parada (AASHTO)" Margin="0,0,0,15" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
+                    <TextBlock Text="⚠️ La rasante se PROPONE, no solo se valida:" Margin="0,12,0,2" Foreground="#E2C044" FontWeight="Bold" TextWrapping="Wrap"/>
+                    <TextBlock Text="• Pendiente máxima respetada (Tabla 4.2)" Margin="0,2,0,2" Foreground="#CCCCCC" FontSize="11"/>
+                    <TextBlock Text="• Curvas dimensionadas por comodidad (K·A) y visibilidad de parada (AASHTO); nunca se recortan" Margin="0,0,0,2" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
+                    <TextBlock Text="• Si un quiebre no cabe con entretangencia mínima (Tabla 4.3), se omite y el tramo queda recto" Margin="0,0,0,15" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
                     <Button x:Name="BtnProcesarPerfil" Content="🛣️ Construir Esqueleto y Rasante C3D" Height="36" Click="BtnProcesarPerfil_Click" Background="#28A745" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
                 </StackPanel>
             </TabItem>

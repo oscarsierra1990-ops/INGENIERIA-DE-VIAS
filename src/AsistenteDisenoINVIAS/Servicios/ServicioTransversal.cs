@@ -180,6 +180,14 @@ namespace AsistenteDisenoINVIAS.Servicios
                 }
             }
 
+            if (curvasLocal.Count > 0)
+            {
+                resultado.RegistrarDecision(
+                    $"Transversal: se propusieron y aplicaron nativamente sobreancho y peralte en {curvasLocal.Count} curva(s) circular(es) " +
+                    $"(ancho de carril {anchoCarril:F2} m, vehículo {parametros.VehiculoDiseno}), con transición 2/3 en tangente y 1/3 en curva; " +
+                    "ver el detalle por curva en la Sección 4.");
+            }
+
             resultado.TransversalProcesado = true;
         }
 

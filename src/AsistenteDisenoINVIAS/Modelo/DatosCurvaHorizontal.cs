@@ -20,6 +20,12 @@ namespace AsistenteDisenoINVIAS.Modelo
         public double RadioMinimoNormativo { get; set; }
         public bool CumpleRadioMinimo { get; set; } = true;
 
+        /// <summary>Radio tal como fue dibujado por el usuario, antes de cualquier
+        /// corrección automática. 0 si no hubo corrección (Radio ya era el original).</summary>
+        public double RadioOriginalDibujado { get; set; }
+        /// <summary>True si el asistente amplió automáticamente el radio para cumplir Rmin.</summary>
+        public bool CorregidoAutomaticamente { get; set; }
+
         public double PeralteMaximo { get; set; }      // e, %
         public double SobreanchoMaximo { get; set; }   // S, m
         public double LongitudTransicion { get; set; } // Lt, m

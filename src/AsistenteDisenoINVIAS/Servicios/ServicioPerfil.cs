@@ -72,72 +72,112 @@ namespace AsistenteDisenoINVIAS.Servicios
 
             if (profileTN != null && rasante != null)
             {
-                List<PviDefinition> pviList = new List<PviDefinition>();
-                pviList.Add(new PviDefinition { Station = alignment.StartingStation, Elevation = profileTN.ElevationAt(alignment.StartingStation), CurveLength = 0.0 });
-
-                List<double> sampledStations = new List<double>();
-                double currentSt = alignment.StartingStation + lMinTangente;
-                while (currentSt <= alignment.EndingStation - lMinTangente) { sampledStations.Add(currentSt); currentSt += lMinTangente; }
-
-                for (int i = 0; i < sampledStations.Count; i++)
+                // PROPUESTA de rasante (no solo verificación): se recorren los
+                // quiebres candidatos del terreno y se acepta cada uno como PVI
+                // real SOLO si existe espacio para una curva vertical de la
+                // longitud exigida por INVIAS (comodidad K·A, visibilidad de
+                // parada y entretangencia mínima). Cuando el espacio no alcanza,
+                // el vértice se omite (el trazado se suaviza recto en ese tramo)
+                // en vez de construir una curva más corta que incumpla la
+                // normativa. Así toda curva vertical generada cumple siempre el
+                // mínimo normativo, y cada omisión queda documentada como una
+                // decisión de diseño con su justificación.
+                double zInicio = profileTN.ElevationAt(alignment.StartingStation);
+                List<PviDefinition> pviList = new List<PviDefinition>
                 {
-                    double stCurr = sampledStations[i]; double zCurr = profileTN.ElevationAt(stCurr);
-                    double stPrev = (i == 0) ? alignment.StartingStation : sampledStations[i - 1]; double zPrev = profileTN.ElevationAt(stPrev);
-                    double stNext = (i == sampledStations.Count - 1) ? alignment.EndingStation : sampledStations[i + 1]; double zNext = profileTN.ElevationAt(stNext);
+                    new PviDefinition { Station = alignment.StartingStation, Elevation = zInicio, CurveLength = 0.0 }
+                };
 
-                    double g1 = ((zCurr - zPrev) / (stCurr - stPrev)) * 100.0;
-                    double g2 = ((zNext - zCurr) / (stNext - stCurr)) * 100.0;
+                List<double> candidatos = new List<double>();
+                double currentSt = alignment.StartingStation + lMinTangente;
+                while (currentSt <= alignment.EndingStation - lMinTangente) { candidatos.Add(currentSt); currentSt += lMinTangente; }
 
-                    if (g1 > pMax) zCurr = zPrev + (pMax / 100.0) * (stCurr - stPrev);
-                    else if (g1 < -pMax) zCurr = zPrev - (pMax / 100.0) * (stCurr - stPrev);
+                double ultimaEstacion = alignment.StartingStation;
+                double ultimaElevacion = zInicio;
+                double ultimaLongitudCurva = 0.0;
 
+                for (int i = 0; i < candidatos.Count; i++)
+                {
+                    double stCand = candidatos[i];
+                    double zCand = profileTN.ElevationAt(stCand);
+
+                    double stRef = (i == candidatos.Count - 1) ? alignment.EndingStation : candidatos[i + 1];
+                    double zRef = profileTN.ElevationAt(stRef);
+
+                    double g1 = ((zCand - ultimaElevacion) / (stCand - ultimaEstacion)) * 100.0;
+                    if (g1 > pMax) { zCand = ultimaElevacion + (pMax / 100.0) * (stCand - ultimaEstacion); g1 = pMax; }
+                    else if (g1 < -pMax) { zCand = ultimaElevacion - (pMax / 100.0) * (stCand - ultimaEstacion); g1 = -pMax; }
+
+                    double g2 = ((zRef - zCand) / (stRef - stCand)) * 100.0;
                     double A = Math.Abs(g2 - g1);
-                    double calculatedLv = 0.0;
-                    string tipo = "N/A";
-                    double kAplicado = 0.0;
-                    double lvVisibilidad = 0.0;
-                    bool cumple = true;
-                    string observaciones = "";
 
-                    if (A >= aLimite)
+                    if (A < aLimite)
                     {
-                        bool esCresta = g1 > g2;
-                        tipo = esCresta ? "Cresta" : "Columpio";
-                        kAplicado = esCresta ? kCrest : kSag;
-                        double lvComodidad = kAplicado * A;
-                        lvVisibilidad = InviasNormativa.LongitudMinimaPorVisibilidad(A, dp, esCresta);
-
-                        double lvRequerida = Math.Max(lvComodidad, Math.Max(lvVisibilidad, lMinCurva));
-                        double espacioDisponible = Math.Min(stCurr - stPrev, stNext - stCurr) * 0.70;
-                        calculatedLv = Math.Min(lvRequerida, espacioDisponible);
-                        if (calculatedLv < 10.0) calculatedLv = 10.0;
-
-                        cumple = calculatedLv >= lvRequerida - 0.5;
-                        if (!cumple)
+                        // Quiebre insignificante: no requiere curva vertical, se
+                        // acopla directamente a la rasante como punto de paso.
+                        resultado.CurvasVerticales.Add(new DatosCurvaVertical
                         {
-                            observaciones = $"Lv adoptada ({calculatedLv:F1} m) limitada por la entretangencia disponible; la longitud requerida por comodidad/visibilidad era {lvRequerida:F1} m.";
-                            resultado.RegistrarAdvertencia($"PVI {GeometriaHelper.FormatearAbscisa(stCurr)} (Perfil): {observaciones}");
-                        }
+                            Elemento = $"PVI-{resultado.CurvasVerticales.Count + 1}",
+                            Abscisa = stCand,
+                            Cota = zCand,
+                            PendienteEntrada = g1,
+                            PendienteSalida = g2,
+                            DiferenciaAlgebraica = A,
+                            Tipo = "N/A",
+                            CumpleLongitudMinima = true
+                        });
+                        pviList.Add(new PviDefinition { Station = stCand, Elevation = zCand, CurveLength = 0.0 });
+                        ultimaEstacion = stCand; ultimaElevacion = zCand; ultimaLongitudCurva = 0.0;
+                        continue;
                     }
 
-                    resultado.CurvasVerticales.Add(new DatosCurvaVertical
+                    bool esCresta = g1 > g2;
+                    string tipo = esCresta ? "Cresta" : "Columpio";
+                    double kAplicado = esCresta ? kCrest : kSag;
+                    double lvComodidad = kAplicado * A;
+                    double lvVisibilidad = InviasNormativa.LongitudMinimaPorVisibilidad(A, dp, esCresta);
+                    double lvRequerida = Math.Max(lvComodidad, Math.Max(lvVisibilidad, lMinCurva));
+
+                    double finCurvaAnterior = ultimaEstacion + ultimaLongitudCurva / 2.0;
+                    double inicioCurvaRequerido = stCand - lvRequerida / 2.0;
+
+                    if (inicioCurvaRequerido - finCurvaAnterior < lMinTangente)
+                    {
+                        // No cabe una curva conforme en este punto sin invadir la
+                        // entretangencia mínima con la curva anterior: se omite
+                        // el vértice y el tramo queda recto entre las curvas
+                        // vecinas, en vez de construir una curva corta que
+                        // incumpliría la Tabla 4.3/4.4/4.5 de INVIAS.
+                        resultado.RegistrarDecision(
+                            $"Perfil: se omitió un vértice de rasante cerca de {GeometriaHelper.FormatearAbscisa(stCand)} porque la entretangencia disponible " +
+                            $"({Math.Max(0, inicioCurvaRequerido - finCurvaAnterior):F1} m) es menor que la mínima normativa ({lMinTangente:F1} m); " +
+                            "el tramo se diseñó recto entre las curvas vecinas para no incumplir la normativa en vez de construir una curva vertical corta.");
+                        continue; // no avanza: se reintenta el siguiente candidato desde el mismo último PVI aceptado
+                    }
+
+                    var dato = new DatosCurvaVertical
                     {
                         Elemento = $"PVI-{resultado.CurvasVerticales.Count + 1}",
-                        Abscisa = stCurr,
-                        Cota = zCurr,
+                        Abscisa = stCand,
+                        Cota = zCand,
                         PendienteEntrada = g1,
                         PendienteSalida = g2,
                         DiferenciaAlgebraica = A,
                         Tipo = tipo,
                         KAplicado = kAplicado,
-                        LongitudCurva = calculatedLv,
-                        LongitudMinimaComodidad = A >= aLimite ? kAplicado * A : 0.0,
+                        LongitudCurva = lvRequerida,
+                        LongitudMinimaComodidad = lvComodidad,
                         LongitudMinimaVisibilidad = lvVisibilidad,
-                        CumpleLongitudMinima = cumple,
-                        Observaciones = observaciones
-                    });
+                        CumpleLongitudMinima = true,
+                        Observaciones = $"Lv = max(comodidad K·A = {lvComodidad:F1} m, visibilidad de parada = {lvVisibilidad:F1} m, mínima visual = {lMinCurva:F1} m)."
+                    };
+                    resultado.CurvasVerticales.Add(dato);
+                    resultado.RegistrarDecision(
+                        $"{dato.Elemento} (Perfil): curva vertical de {tipo.ToLower()} de Lv = {lvRequerida:F1} m propuesta en {GeometriaHelper.FormatearAbscisa(stCand)}, " +
+                        $"dimensionada por el criterio más exigente entre comodidad (K = {kAplicado:F1}) y visibilidad de parada (Dp = {dp:F1} m para Vtr = {vtr:F0} km/h).");
 
-                    pviList.Add(new PviDefinition { Station = stCurr, Elevation = zCurr, CurveLength = calculatedLv });
+                    pviList.Add(new PviDefinition { Station = stCand, Elevation = zCand, CurveLength = lvRequerida });
+                    ultimaEstacion = stCand; ultimaElevacion = zCand; ultimaLongitudCurva = lvRequerida;
                 }
                 pviList.Add(new PviDefinition { Station = alignment.EndingStation, Elevation = profileTN.ElevationAt(alignment.EndingStation), CurveLength = 0.0 });
 
