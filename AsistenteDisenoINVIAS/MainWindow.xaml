@@ -329,7 +329,46 @@
 
         <TabControl Grid.Row="1">
 
-            <TabItem Header="1. PLANTA">
+            <TabItem Header="1. TRAZADO A-B">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16">
+                        <TextBlock Text="Trazado Automático entre Dos Puntos" Style="{StaticResource TabSectionTitle}"/>
+                        <TextBlock Text="Corredor preliminar sobre la superficie, restringido por la pendiente máxima" Style="{StaticResource TabSectionSubtitle}" Margin="0,1,0,16"/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Superficie de Terreno Natural (MDT)" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox x:Name="CmbSuperficieTrazado" Loaded="CmbSuperficieTrazado_Loaded" DropDownOpened="CmbSuperficieTrazado_DropDownOpened"/>
+
+                                <TextBlock Text="Método de Trazado" Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                                <ComboBox x:Name="CmbMetodoTrazado" ToolTip="Línea a pendiente constante: método clásico del compás, avanza siempre a la pendiente máxima permitida siguiendo el terreno.&#10;Ruta de costo mínimo: busca el camino más corto entre A y B que en ningún tramo supere la pendiente máxima (grilla + Dijkstra).">
+                                    <ComboBoxItem Content="Línea a pendiente constante (compás)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Ruta de costo mínimo (grilla)"/>
+                                </ComboBox>
+
+                                <TextBlock Text="Paso de cálculo (m)" Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                                <TextBox x:Name="TxtPasoTrazado" Text="20"/>
+
+                                <TextBlock Text="Tolerancia de simplificación a PI (m)" Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                                <TextBox x:Name="TxtToleranciaSimplificacion" Text="15"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="PUNTOS DE PASO" Style="{StaticResource CardHeading}"/>
+                                <Rectangle Height="1" Fill="{StaticResource BrushBorder}" Margin="0,8,0,10"/>
+                                <Button x:Name="BtnSeleccionarPuntoA" Content="SELECCIONAR PUNTO A" Style="{StaticResource ButtonSecondary}" Margin="0,0,0,8" Click="BtnSeleccionarPuntoA_Click"/>
+                                <Button x:Name="BtnSeleccionarPuntoB" Content="SELECCIONAR PUNTO B" Style="{StaticResource ButtonSecondary}" Click="BtnSeleccionarPuntoB_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Button x:Name="BtnGenerarTrazadoAB" Content="GENERAR POLILÍNEA ÓPTIMA A-B" Style="{StaticResource ButtonSuccess}" Margin="0,18,0,0" Click="BtnGenerarTrazadoAB_Click"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="2. PLANTA">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="16">
                         <TextBlock Text="Diseño Geométrico en Planta" Style="{StaticResource TabSectionTitle}"/>
@@ -384,7 +423,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="2. PERFIL">
+            <TabItem Header="3. PERFIL">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="16">
                         <TextBlock Text="Diseño Altimétrico de Rasante" Style="{StaticResource TabSectionTitle}"/>
@@ -433,7 +472,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="3. TRANSV.">
+            <TabItem Header="4. TRANSV.">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="16">
                         <TextBlock Text="Peraltes y Bordes de Vía" Style="{StaticResource TabSectionTitle}"/>
@@ -481,7 +520,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="4. REPORTES">
+            <TabItem Header="5. REPORTES">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="16">
                         <TextBlock Text="Generador de Memorias" Style="{StaticResource TabSectionTitle}"/>

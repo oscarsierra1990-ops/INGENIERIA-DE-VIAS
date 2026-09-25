@@ -1756,12 +1756,16 @@ namespace AsistenteDisenoINVIAS
             }
         }
 
-        private void CmbSuperficies_Loaded(object sender, RoutedEventArgs e) { CargarSuperficiesEnComboBox(); }
-        private void CmbSuperficies_DropDownOpened(object sender, EventArgs e) { CargarSuperficiesEnComboBox(); }
+        private void CmbSuperficies_Loaded(object sender, RoutedEventArgs e) { CargarSuperficiesEnComboBox(CmbSuperficies); }
+        private void CmbSuperficies_DropDownOpened(object sender, EventArgs e) { CargarSuperficiesEnComboBox(CmbSuperficies); }
+        private void CmbSuperficieTrazado_Loaded(object sender, RoutedEventArgs e) { CargarSuperficiesEnComboBox(CmbSuperficieTrazado); }
+        private void CmbSuperficieTrazado_DropDownOpened(object sender, EventArgs e) { CargarSuperficiesEnComboBox(CmbSuperficieTrazado); }
 
-        private void CargarSuperficiesEnComboBox()
+        // Puebla cualquier ComboBox de superficies (se usa tanto en la pestaña Perfil como en la
+        // nueva pestaña de Trazado A-B) con las superficies TIN del documento Civil3D activo.
+        private void CargarSuperficiesEnComboBox(ComboBox destino)
         {
-            CmbSuperficies.Items.Clear();
+            destino.Items.Clear();
             Document? doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
             CivilDocument civilDoc = CivilApplication.ActiveDocument;
@@ -1775,12 +1779,405 @@ namespace AsistenteDisenoINVIAS
                     foreach (ObjectId surfId in surfaceIds)
                     {
                         Autodesk.Civil.DatabaseServices.Surface? surf = tr.GetObject(surfId, OpenMode.ForRead) as Autodesk.Civil.DatabaseServices.Surface;
-                        if (surf != null && surf.Name != null) CmbSuperficies.Items.Add(new ComboBoxItem { Content = surf.Name, Tag = surfId });
+                        if (surf != null && surf.Name != null) destino.Items.Add(new ComboBoxItem { Content = surf.Name, Tag = surfId });
                     }
                     tr.Commit();
                 }
             }
-            if (CmbSuperficies.Items.Count > 0) CmbSuperficies.SelectedIndex = 0;
+            if (destino.Items.Count > 0) destino.SelectedIndex = 0;
+        }
+
+        // ==========================================
+        // 🔹 PESTAÑA 0: TRAZADO AUTOMÁTICO ENTRE DOS PUNTOS (A-B)
+        // ==========================================
+        // Genera una polilínea PRELIMINAR entre dos puntos sobre una superficie de terreno,
+        // respetando la pendiente longitudinal máxima admisible (numeral 4.1.2 INVIAS,
+        // ObtenerPendienteMaximaINVIAS) — es un boceto de corredor para terreno montañoso o
+        // escarpado, NO un eje ya diseñado: sus PI deben revisarse y ajustarse con criterio de
+        // ingeniería antes de procesarlos como definitivos, igual que con una Spline (ver el
+        // aviso de BtnSelectPolyline_Click).
+        //
+        // Se ofrecen DOS métodos, a elección del usuario, porque no hay uno objetivamente mejor:
+        //  - "Línea a pendiente constante" (compás): el método clásico de preanteproyecto en
+        //    terreno escarpado. En cada paso de longitud fija se prueba un abanico de
+        //    direcciones y se elige la que (a) respeta la pendiente máxima y (b) más avanza
+        //    hacia B. Sigue el terreno de cerca, pero puede alargar mucho el recorrido.
+        //  - "Ruta de costo mínimo" (grilla + Dijkstra): minimiza la distancia total entre A y B
+        //    sin que ningún tramo supere la pendiente máxima (restricción dura, no preferencia).
+        //    Más corta, pero no sigue las curvas de nivel tan literalmente y es más pesada.
+        //
+        // En ambos casos, el resultado crudo (decenas o cientos de vértices siguiendo el
+        // terreno al detalle) se simplifica con Douglas-Peucker a un número razonable de PI
+        // utilizables, según la tolerancia indicada por el usuario.
+        private Point3d? _trazadoPuntoA;
+        private Point3d? _trazadoPuntoB;
+
+        private void BtnSeleccionarPuntoA_Click(object sender, RoutedEventArgs e)
+        {
+            Document? doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            PromptPointOptions ppo = new PromptPointOptions("\n[INVIAS] Seleccione el punto A (inicio del corredor): ");
+            PromptPointResult ppr = doc.Editor.GetPoint(ppo);
+            if (ppr.Status != PromptStatus.OK) return;
+            _trazadoPuntoA = ppr.Value;
+            MessageBox.Show($"Punto A fijado en ({ppr.Value.X:F2}, {ppr.Value.Y:F2}).", "Trazado A-B", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnSeleccionarPuntoB_Click(object sender, RoutedEventArgs e)
+        {
+            Document? doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            PromptPointOptions ppo = new PromptPointOptions("\n[INVIAS] Seleccione el punto B (fin del corredor): ");
+            PromptPointResult ppr = doc.Editor.GetPoint(ppo);
+            if (ppr.Status != PromptStatus.OK) return;
+            _trazadoPuntoB = ppr.Value;
+            MessageBox.Show($"Punto B fijado en ({ppr.Value.X:F2}, {ppr.Value.Y:F2}).", "Trazado A-B", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // Aísla la consulta de elevación de la superficie en un único punto: si el nombre real
+        // de este método en Autodesk.Civil.DatabaseServices.Surface resultara ser distinto de
+        // FindElevationAtXY en esta versión de Civil3D (ya ha pasado con otras API de este
+        // proyecto), solo hay que corregir esta función, no los dos algoritmos que la usan.
+        private double ObtenerElevacion(Autodesk.Civil.DatabaseServices.Surface surface, double x, double y)
+        {
+            return surface.FindElevationAtXY(x, y);
+        }
+
+        private double NormalizarAngulo(double a)
+        {
+            while (a > Math.PI) a -= 2.0 * Math.PI;
+            while (a < -Math.PI) a += 2.0 * Math.PI;
+            return a;
+        }
+
+        // Método 1: "línea a pendiente constante" (compás clásico). En cada paso de longitud
+        // fija 'paso', se evalúan varias direcciones candidatas alrededor del rumbo hacia B y se
+        // elige la que (a) respeta la pendiente máxima y (b) más avanza hacia B; si NINGUNA
+        // respeta la pendiente máxima (terreno más escarpado de lo admisible en ese punto), se
+        // elige la menos mala en vez de detenerse, y se cuentan esos pasos para informarlos.
+        private List<(double x, double y, double z)> TrazarPendienteConstante(Autodesk.Civil.DatabaseServices.Surface surface, Point3d a, Point3d b, double pendienteMaximaFraccion, double paso, out int pasosExcedidos, out string error)
+        {
+            var ruta = new List<(double x, double y, double z)>();
+            pasosExcedidos = 0;
+            error = "";
+
+            double xActual = a.X, yActual = a.Y;
+            double zActual = ObtenerElevacion(surface, xActual, yActual);
+            if (double.IsNaN(zActual)) { error = "El punto A está fuera de los límites de la superficie seleccionada."; return ruta; }
+            ruta.Add((xActual, yActual, zActual));
+
+            double zB = ObtenerElevacion(surface, b.X, b.Y);
+            if (double.IsNaN(zB)) { error = "El punto B está fuera de los límites de la superficie seleccionada."; return ruta; }
+
+            double distanciaTotal = a.DistanceTo(b);
+            int maxPasos = Math.Max(200, (int)(distanciaTotal / paso * 20)); // margen generoso frente a la línea recta, para permitir rodeos
+            const int nDirecciones = 48; // resolución angular del abanico de búsqueda (360°/48 = 7.5°)
+
+            for (int iter = 0; iter < maxPasos; iter++)
+            {
+                double distRestante = Math.Sqrt(Math.Pow(b.X - xActual, 2) + Math.Pow(b.Y - yActual, 2));
+                if (distRestante <= paso)
+                {
+                    // Último tramo: cierra directo en B (evita "orbitar" B con pasos de tamaño
+                    // fijo). Este tramo final también puede exceder la pendiente máxima (p. ej.
+                    // si quedó muy poca distancia y B está mucho más alto/bajo) y debe contarse
+                    // igual que cualquier otro paso, no quedar fuera de la verificación.
+                    if (distRestante > 1e-9 && Math.Abs(zB - zActual) / distRestante > pendienteMaximaFraccion + 1e-9)
+                        pasosExcedidos++;
+                    ruta.Add((b.X, b.Y, zB));
+                    return ruta;
+                }
+
+                double rumboHaciaB = Math.Atan2(b.Y - yActual, b.X - xActual);
+                double mejorPuntuacion = double.MaxValue;
+                double mejorX = 0, mejorY = 0, mejorZ = 0;
+                bool encontrada = false;
+
+                for (int k = 0; k < nDirecciones; k++)
+                {
+                    double angulo = 2.0 * Math.PI * k / nDirecciones;
+                    double xCand = xActual + paso * Math.Cos(angulo);
+                    double yCand = yActual + paso * Math.Sin(angulo);
+                    double zCand = ObtenerElevacion(surface, xCand, yCand);
+                    if (double.IsNaN(zCand)) continue; // fuera de la superficie: candidato inválido
+
+                    double pendienteCand = Math.Abs(zCand - zActual) / paso;
+                    bool cumplePendiente = pendienteCand <= pendienteMaximaFraccion + 1e-9;
+                    double desviacionRumbo = Math.Abs(NormalizarAngulo(angulo - rumboHaciaB));
+
+                    // Puntuación: prioriza SIEMPRE cumplir la pendiente máxima, y entre las que
+                    // cumplen, la que más se acerca al rumbo directo hacia B. Si ninguna cumple,
+                    // el exceso de pendiente decide primero (para escoger la menos mala) y la
+                    // desviación de rumbo en segundo lugar.
+                    double puntuacion = cumplePendiente
+                        ? desviacionRumbo
+                        : 1000.0 + (pendienteCand - pendienteMaximaFraccion) * 100.0 + desviacionRumbo;
+
+                    if (puntuacion < mejorPuntuacion)
+                    {
+                        mejorPuntuacion = puntuacion;
+                        mejorX = xCand; mejorY = yCand; mejorZ = zCand;
+                        encontrada = true;
+                    }
+                }
+
+                if (!encontrada) { error = "La superficie no tiene datos suficientes alrededor del punto actual para continuar el trazado."; return ruta; }
+
+                double pendienteElegida = Math.Abs(mejorZ - zActual) / paso;
+                if (pendienteElegida > pendienteMaximaFraccion + 1e-9) pasosExcedidos++;
+
+                xActual = mejorX; yActual = mejorY; zActual = mejorZ;
+                ruta.Add((xActual, yActual, zActual));
+            }
+
+            error = $"No se alcanzó el punto B tras {maxPasos} pasos (posible bucle en terreno muy escarpado); se devuelve el recorrido parcial. Intente con un paso de cálculo mayor.";
+            return ruta;
+        }
+
+        // Método 2: "ruta de costo mínimo" sobre una grilla regular de la superficie, con
+        // Dijkstra (SortedSet como cola de prioridad, sin depender de PriorityQueue<> por si el
+        // proyecto terminara compilando contra un target framework donde no exista). Cada nodo
+        // se conecta con sus 8 vecinos; una arista se descarta por completo (costo infinito) si
+        // su pendiente supera la máxima admisible — la restricción de pendiente es un requisito
+        // duro, no una preferencia, en toda la ruta resultante. El costo de cada arista válida
+        // es su distancia 2D, así que Dijkstra minimiza la longitud total del corredor.
+        private List<(double x, double y, double z)> TrazarCostoMinimo(Autodesk.Civil.DatabaseServices.Surface surface, Point3d a, Point3d b, double pendienteMaximaFraccion, double pasoGrilla, out string error)
+        {
+            error = "";
+            var ruta = new List<(double x, double y, double z)>();
+
+            double margen = Math.Max(pasoGrilla * 5, a.DistanceTo(b) * 0.15);
+            double xMin = Math.Min(a.X, b.X) - margen, xMax = Math.Max(a.X, b.X) + margen;
+            double yMin = Math.Min(a.Y, b.Y) - margen, yMax = Math.Max(a.Y, b.Y) + margen;
+
+            int nCols = (int)((xMax - xMin) / pasoGrilla) + 1;
+            int nFilas = (int)((yMax - yMin) / pasoGrilla) + 1;
+
+            const int MAX_NODOS = 60000; // techo de seguridad para no congelar AutoCAD
+            if ((long)nCols * nFilas > MAX_NODOS)
+            {
+                error = $"La grilla resultante ({nCols}x{nFilas} = {(long)nCols * nFilas:N0} nodos) excede el límite de {MAX_NODOS:N0}. Aumente el paso de cálculo o acerque los puntos A y B.";
+                return ruta;
+            }
+
+            double[,] elev = new double[nCols, nFilas];
+            bool[,] valido = new bool[nCols, nFilas];
+            for (int i = 0; i < nCols; i++)
+            {
+                for (int j = 0; j < nFilas; j++)
+                {
+                    double x = xMin + i * pasoGrilla, y = yMin + j * pasoGrilla;
+                    double z = ObtenerElevacion(surface, x, y);
+                    valido[i, j] = !double.IsNaN(z);
+                    elev[i, j] = z;
+                }
+            }
+
+            int ColDe(double x) => (int)Math.Round((x - xMin) / pasoGrilla);
+            int FilaDe(double y) => (int)Math.Round((y - yMin) / pasoGrilla);
+            int iA = Math.Max(0, Math.Min(nCols - 1, ColDe(a.X))), jA = Math.Max(0, Math.Min(nFilas - 1, FilaDe(a.Y)));
+            int iB = Math.Max(0, Math.Min(nCols - 1, ColDe(b.X))), jB = Math.Max(0, Math.Min(nFilas - 1, FilaDe(b.Y)));
+
+            if (!valido[iA, jA]) { error = "El punto A está fuera de los límites de la superficie seleccionada."; return ruta; }
+            if (!valido[iB, jB]) { error = "El punto B está fuera de los límites de la superficie seleccionada."; return ruta; }
+
+            int NodoId(int i, int j) => j * nCols + i;
+            int totalNodos = nCols * nFilas;
+            double[] dist = new double[totalNodos];
+            int[] previo = new int[totalNodos];
+            bool[] visitado = new bool[totalNodos];
+            for (int n = 0; n < totalNodos; n++) { dist[n] = double.PositiveInfinity; previo[n] = -1; }
+            int nodoA = NodoId(iA, jA), nodoB = NodoId(iB, jB);
+            dist[nodoA] = 0;
+
+            var cola = new SortedSet<(double dist, int nodo)>();
+            cola.Add((0, nodoA));
+
+            (int di, int dj)[] vecinos8 = { (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1) };
+
+            while (cola.Count > 0)
+            {
+                var minimo = cola.Min;
+                cola.Remove(minimo);
+                int actual = minimo.nodo;
+                if (visitado[actual]) continue;
+                visitado[actual] = true;
+                if (actual == nodoB) break;
+
+                int iAct = actual % nCols, jAct = actual / nCols;
+                foreach (var (di, dj) in vecinos8)
+                {
+                    int iVec = iAct + di, jVec = jAct + dj;
+                    if (iVec < 0 || iVec >= nCols || jVec < 0 || jVec >= nFilas) continue;
+                    if (!valido[iVec, jVec]) continue;
+
+                    double distArista = Math.Sqrt(di * di + dj * dj) * pasoGrilla;
+                    double pendienteArista = Math.Abs(elev[iVec, jVec] - elev[iAct, jAct]) / distArista;
+                    if (pendienteArista > pendienteMaximaFraccion + 1e-9) continue; // restricción dura: arista inexistente
+
+                    int vecinoId = NodoId(iVec, jVec);
+                    double nuevaDist = dist[actual] + distArista;
+                    if (nuevaDist < dist[vecinoId])
+                    {
+                        dist[vecinoId] = nuevaDist;
+                        previo[vecinoId] = actual;
+                        cola.Add((nuevaDist, vecinoId));
+                    }
+                }
+            }
+
+            if (double.IsPositiveInfinity(dist[nodoB]))
+            {
+                error = "No existe ninguna ruta entre A y B que respete la pendiente máxima dentro del área de búsqueda. Pruebe con una Categoría/Terreno que admita mayor pendiente, o revise si hay un obstáculo infranqueable (acantilado, cuerpo de agua) entre los dos puntos.";
+                return ruta;
+            }
+
+            var pila = new List<int>();
+            int nodo2 = nodoB;
+            while (nodo2 != -1) { pila.Add(nodo2); nodo2 = previo[nodo2]; }
+            pila.Reverse();
+            foreach (int n in pila)
+            {
+                int i = n % nCols, j = n / nCols;
+                ruta.Add((xMin + i * pasoGrilla, yMin + j * pasoGrilla, elev[i, j]));
+            }
+            return ruta;
+        }
+
+        // Simplificación de Douglas-Peucker sobre la proyección en planta (X,Y) de la ruta:
+        // reduce una polilínea con muchos vértices (siguiendo el terreno al detalle) a un
+        // número razonable de PI utilizables, conservando solo los puntos donde el trazado se
+        // aparta más de 'tolerancia' metros de la línea recta entre sus vecinos "de anclaje".
+        private List<Point2d> SimplificarDouglasPeucker(List<Point2d> puntos, double tolerancia)
+        {
+            if (puntos.Count < 3) return new List<Point2d>(puntos);
+            bool[] conservar = new bool[puntos.Count];
+            conservar[0] = true;
+            conservar[puntos.Count - 1] = true;
+            SimplificarRecursivo(puntos, 0, puntos.Count - 1, tolerancia, conservar);
+            var resultado = new List<Point2d>();
+            for (int i = 0; i < puntos.Count; i++) if (conservar[i]) resultado.Add(puntos[i]);
+            return resultado;
+        }
+
+        private void SimplificarRecursivo(List<Point2d> puntos, int inicio, int fin, double tolerancia, bool[] conservar)
+        {
+            if (fin <= inicio + 1) return;
+            double maxDist = -1;
+            int idxMax = -1;
+            for (int i = inicio + 1; i < fin; i++)
+            {
+                double d = DistanciaPuntoSegmento(puntos[i], puntos[inicio], puntos[fin]);
+                if (d > maxDist) { maxDist = d; idxMax = i; }
+            }
+            if (maxDist > tolerancia && idxMax >= 0)
+            {
+                conservar[idxMax] = true;
+                SimplificarRecursivo(puntos, inicio, idxMax, tolerancia, conservar);
+                SimplificarRecursivo(puntos, idxMax, fin, tolerancia, conservar);
+            }
+        }
+
+        private double DistanciaPuntoSegmento(Point2d p, Point2d a, Point2d b)
+        {
+            double dx = b.X - a.X, dy = b.Y - a.Y;
+            double largo2 = dx * dx + dy * dy;
+            if (largo2 < 1e-12) return p.GetDistanceTo(a);
+            double t = ((p.X - a.X) * dx + (p.Y - a.Y) * dy) / largo2;
+            t = Math.Max(0.0, Math.Min(1.0, t));
+            double px = a.X + t * dx, py = a.Y + t * dy;
+            return Math.Sqrt((p.X - px) * (p.X - px) + (p.Y - py) * (p.Y - py));
+        }
+
+        private void BtnGenerarTrazadoAB_Click(object sender, RoutedEventArgs e)
+        {
+            Document? doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+
+            if (_trazadoPuntoA == null || _trazadoPuntoB == null)
+            {
+                MessageBox.Show("Seleccione primero los puntos A y B.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (CmbSuperficieTrazado.SelectedItem == null) { CargarSuperficiesEnComboBox(CmbSuperficieTrazado); return; }
+            ObjectId surfaceId = (ObjectId)((ComboBoxItem)CmbSuperficieTrazado.SelectedItem).Tag;
+
+            double.TryParse(TxtPasoTrazado.Text, out double paso);
+            if (paso <= 0) paso = 20.0;
+            double.TryParse(TxtToleranciaSimplificacion.Text, out double tolerancia);
+            if (tolerancia <= 0) tolerancia = 15.0;
+
+            int catIdx = CmbCategoriaVia.SelectedIndex;
+            double vtr = ObtenerVelocidadDiseno();
+            double pendienteMaximaFraccion = ObtenerPendienteMaximaINVIAS(catIdx, vtr) / 100.0;
+
+            int metodo = CmbMetodoTrazado.SelectedIndex;
+
+            try
+            {
+                Autodesk.Civil.DatabaseServices.Surface? surface;
+                using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
+                {
+                    surface = tr.GetObject(surfaceId, OpenMode.ForRead) as Autodesk.Civil.DatabaseServices.Surface;
+                    tr.Commit();
+                }
+                if (surface == null) { MessageBox.Show("No se pudo abrir la superficie seleccionada.", "Error", MessageBoxButton.OK, MessageBoxImage.Error); return; }
+
+                List<(double x, double y, double z)> rutaCruda;
+                string error;
+                string resumenMetodo;
+
+                if (metodo == 0)
+                {
+                    rutaCruda = TrazarPendienteConstante(surface, _trazadoPuntoA.Value, _trazadoPuntoB.Value, pendienteMaximaFraccion, paso, out int pasosExcedidos, out error);
+                    resumenMetodo = pasosExcedidos > 0
+                        ? $"Línea a pendiente constante — {pasosExcedidos} de {rutaCruda.Count} pasos NO pudieron respetar la pendiente máxima ({pendienteMaximaFraccion * 100:F1}%) por terreno más escarpado de lo admisible en ese tramo; revíselos en el dibujo."
+                        : $"Línea a pendiente constante — todos los pasos respetan la pendiente máxima ({pendienteMaximaFraccion * 100:F1}%).";
+                }
+                else
+                {
+                    rutaCruda = TrazarCostoMinimo(surface, _trazadoPuntoA.Value, _trazadoPuntoB.Value, pendienteMaximaFraccion, paso, out error);
+                    resumenMetodo = $"Ruta de costo mínimo — pendiente máxima ({pendienteMaximaFraccion * 100:F1}%) respetada como restricción dura en toda la ruta.";
+                }
+
+                if (rutaCruda.Count < 2)
+                {
+                    MessageBox.Show($"No se pudo generar el trazado.\n\n{error}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var puntos2d = rutaCruda.Select(p => new Point2d(p.x, p.y)).ToList();
+                var simplificados = SimplificarDouglasPeucker(puntos2d, tolerancia);
+
+                if (simplificados.Count < 2)
+                {
+                    MessageBox.Show("La simplificación dejó menos de 2 puntos; reduzca la tolerancia.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                using (DocumentLock docLock = doc.LockDocument())
+                {
+                    using (Transaction tr2 = doc.Database.TransactionManager.StartTransaction())
+                    {
+                        BlockTableRecord btr = (BlockTableRecord)tr2.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite);
+                        Polyline pline = new Polyline();
+                        for (int i = 0; i < simplificados.Count; i++) pline.AddVertexAt(i, simplificados[i], 0, 0, 0);
+                        pline.Layer = ObtenerNombreCapaActual(tr2, doc.Database);
+                        btr.AppendEntity(pline);
+                        tr2.AddNewlyCreatedDBObject(pline, true);
+                        tr2.Commit();
+
+                        SelectedPolylineId = pline.ObjectId;
+                    }
+                }
+
+                string advertenciaError = string.IsNullOrEmpty(error) ? "" : $"\n\n⚠ {error}";
+                MessageBox.Show($"Polilínea de trazado generada entre A y B.\n\n• {resumenMetodo}\n• Vértices del trazado crudo: {rutaCruda.Count}\n• PI tras simplificar (tolerancia {tolerancia:F1} m): {simplificados.Count}\n\nSe fijó automáticamente como el eje seleccionado para la pestaña PLANTA — revise sus PI antes de procesar la planta: esto es un boceto de corredor, no un eje de diseño terminado.{advertenciaError}", "Trazado A-B completado", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (System.Exception ex)
+            {
+                MessageBox.Show($"Ocurrió un error generando el trazado:\n\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // ==========================================
@@ -2224,7 +2621,7 @@ namespace AsistenteDisenoINVIAS
             if (doc == null) return;
             Database db = doc.Database; Editor ed = doc.Editor; CivilDocument civilDoc = CivilApplication.ActiveDocument;
 
-            if (CmbSuperficies.SelectedItem == null) { CargarSuperficiesEnComboBox(); return; }
+            if (CmbSuperficies.SelectedItem == null) { CargarSuperficiesEnComboBox(CmbSuperficies); return; }
             ObjectId surfaceId = (ObjectId)((ComboBoxItem)CmbSuperficies.SelectedItem).Tag;
 
             ObjectId alignId = ObtenerEjeSeleccionado(db, civilDoc);
