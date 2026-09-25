@@ -1,0 +1,527 @@
+﻿<UserControl x:Class="AsistenteDisenoINVIAS.MainWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="380"
+             Background="#181B20" Foreground="#E7EAEE" FontFamily="Segoe UI">
+    <UserControl.Resources>
+
+        <!-- ===================== PALETA ===================== -->
+        <SolidColorBrush x:Key="BrushBackground"      Color="#181B20"/>
+        <SolidColorBrush x:Key="BrushPanel"           Color="#1E2229"/>
+        <SolidColorBrush x:Key="BrushCard"            Color="#232830"/>
+        <SolidColorBrush x:Key="BrushBorder"          Color="#333A44"/>
+        <SolidColorBrush x:Key="BrushBorderLight"     Color="#454E59"/>
+        <SolidColorBrush x:Key="BrushInputBackground" Color="#282E37"/>
+
+        <SolidColorBrush x:Key="BrushAccent"          Color="#3399DD"/>
+        <SolidColorBrush x:Key="BrushAccentDark"      Color="#21669A"/>
+        <SolidColorBrush x:Key="BrushSuccess"         Color="#3E9A5B"/>
+        <SolidColorBrush x:Key="BrushSuccessDark"     Color="#2C7443"/>
+        <SolidColorBrush x:Key="BrushInfo"            Color="#2F93A8"/>
+        <SolidColorBrush x:Key="BrushInfoDark"        Color="#226E7E"/>
+
+        <SolidColorBrush x:Key="BrushTextPrimary"     Color="#E7EAEE"/>
+        <SolidColorBrush x:Key="BrushTextSecondary"   Color="#95A2AF"/>
+        <SolidColorBrush x:Key="BrushTextMuted"       Color="#697280"/>
+        <SolidColorBrush x:Key="BrushOnAccent"        Color="#FFFFFF"/>
+
+        <!-- ===================== TIPOGRAFÍA / TEXTO ===================== -->
+        <Style x:Key="TabSectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+        </Style>
+        <Style x:Key="TabSectionSubtitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style x:Key="CardHeading" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
+        </Style>
+        <Style x:Key="BodyText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="LineHeight" Value="18"/>
+        </Style>
+        <Style x:Key="NoteText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
+        <!-- ===================== CARD ===================== -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BrushCard}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="14"/>
+        </Style>
+
+        <!-- ===================== BOTONES ===================== -->
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource BrushOnAccent}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.87"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.72"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ButtonPrimary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource BrushAccent}"/>
+        </Style>
+        <Style x:Key="ButtonSuccess" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource BrushSuccess}"/>
+        </Style>
+        <Style x:Key="ButtonInfo" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource BrushInfo}"/>
+        </Style>
+        <Style x:Key="ButtonSecondary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource BrushInputBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{StaticResource BrushBorderLight}" BorderThickness="1" CornerRadius="3" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.75"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ===================== TEXTBOX ===================== -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource BrushInputBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource BrushTextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BrushBorderLight}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ===================== COMBOBOX ===================== -->
+        <Style x:Key="ComboBoxToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="ClickMode" Value="Press"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid Background="Transparent">
+                            <Path x:Name="Arrow" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"
+                                  Data="M 0 0 L 4 4 L 8 0 Z" Fill="{StaticResource BrushTextSecondary}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Arrow" Property="Fill" Value="{StaticResource BrushAccent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource BrushAccentDark}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource BrushAccent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="{StaticResource BrushInputBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BrushBorderLight}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="MainBorder" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="3" SnapsToDevicePixels="True"/>
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                            <ToggleButton x:Name="ToggleButton" Style="{StaticResource ComboBoxToggleButtonStyle}"
+                                          Background="Transparent" Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder" Background="{StaticResource BrushCard}"
+                                            BorderBrush="{StaticResource BrushBorderLight}" BorderThickness="1" CornerRadius="3"
+                                            Margin="0,3,0,0"/>
+                                    <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="MainBorder" Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="MainBorder" Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="MainBorder" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ===================== TABCONTROL ===================== -->
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="ItemsPanel">
+                <Setter.Value>
+                    <!-- Reparte los 4 encabezados en columnas de ancho IGUAL: evita que
+                         el texto de un tab quede pegado al del siguiente, sin importar
+                         cuántos caracteres tenga cada título. -->
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" IsItemsHost="True"/>
+                    </ItemsPanelTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="6,10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd" Background="{StaticResource BrushPanel}" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="{TemplateBinding Padding}">
+                            <TextBlock Text="{TemplateBinding Header}" TextWrapping="Wrap" TextAlignment="Center"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource BrushCard}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrushAccent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="False">
+                                <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===================== ENCABEZADO ===================== -->
+        <Border Grid.Row="0" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="16,12">
+            <StackPanel>
+                <TextBlock Text="ASISTENTE DE DISEÑO GEOMÉTRICO" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
+                <TextBlock Text="Manual de Diseño Geométrico de Carreteras · INVIAS 2008" Style="{StaticResource TabSectionSubtitle}"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl Grid.Row="1">
+
+            <TabItem Header="1. PLANTA">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16">
+                        <TextBlock Text="Diseño Geométrico en Planta" Style="{StaticResource TabSectionTitle}"/>
+                        <TextBlock Text="Parámetros normativos del eje horizontal" Style="{StaticResource TabSectionSubtitle}" Margin="0,1,0,16"/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Categoría de la Carretera" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox x:Name="CmbCategoriaVia" SelectionChanged="CmbNormativa_SelectionChanged">
+                                    <ComboBoxItem Content="Primaria de dos calzadas"/>
+                                    <ComboBoxItem Content="Primaria de una calzada"/>
+                                    <ComboBoxItem Content="Secundaria"/>
+                                    <ComboBoxItem Content="Terciaria" IsSelected="True"/>
+                                </ComboBox>
+
+                                <TextBlock Text="Tipo de Terreno" Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                                <ComboBox x:Name="CmbTipoTerreno" SelectionChanged="CmbNormativa_SelectionChanged">
+                                    <ComboBoxItem Content="Plano (P)"/>
+                                    <ComboBoxItem Content="Ondulado (O)"/>
+                                    <ComboBoxItem Content="Montañoso (M)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Escarpado (E)"/>
+                                </ComboBox>
+
+                                <TextBlock Text="Velocidad Específica Vtr (km/h)" Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                                <ComboBox x:Name="CmbVtr">
+                                    <ComboBoxItem Content="20"/>
+                                    <ComboBoxItem Content="30" IsSelected="True"/>
+                                    <ComboBoxItem Content="40"/>
+                                    <ComboBoxItem Content="50"/>
+                                    <ComboBoxItem Content="60"/>
+                                    <ComboBoxItem Content="70"/>
+                                    <ComboBoxItem Content="80"/>
+                                    <ComboBoxItem Content="90"/>
+                                    <ComboBoxItem Content="100"/>
+                                    <ComboBoxItem Content="110"/>
+                                    <ComboBoxItem Content="120"/>
+                                    <ComboBoxItem Content="130"/>
+                                </ComboBox>
+
+                                <TextBlock Text="Modo de Diseño en Planta" Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                                <ComboBox x:Name="CmbModoDiseno" ToolTip="Óptimo: mejor radio que permita la entretangencia, espiral solo si R≤1000 m.&#10;Compacto: radio mínimo normativo siempre (menor huella predial), espiral obligatoria si R≤1000 m — sigue cumpliendo el numeral 3.7.&#10;Vía urbana: radio mínimo, SIN espiral aunque R≤1000 m — NO garantiza cumplimiento 100% del Manual, uso solo en contexto urbano.">
+                                    <ComboBoxItem Content="Óptimo (sin restricción predial)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Compacto (con restricción predial — radio mínimo, espiral obligatoria)"/>
+                                    <ComboBoxItem Content="Vía urbana (radio mínimo, sin espiral — no garantiza cumplimiento 100% del Manual)"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+
+                        <Button x:Name="BtnSelectPolyline" Content="SELECCIONAR POLILÍNEA DE EJE" Style="{StaticResource ButtonSecondary}" Margin="0,18,0,8" Click="BtnSelectPolyline_Click"/>
+                        <Button x:Name="BtnProcesarPlanta" Content="PROCESAR PLANTA Y CUADRO INVIAS" Style="{StaticResource ButtonSuccess}" Click="BtnProcesarPlanta_Click"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="2. PERFIL">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16">
+                        <TextBlock Text="Diseño Altimétrico de Rasante" Style="{StaticResource TabSectionTitle}"/>
+                        <TextBlock Text="Selección de eje, perfil y superficie" Style="{StaticResource TabSectionSubtitle}" Margin="0,1,0,16"/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Eje de Diseño" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox x:Name="CmbEjes" Loaded="CmbEjes_Loaded" DropDownOpened="CmbEjes_DropDownOpened" SelectionChanged="CmbEjes_SelectionChanged"/>
+
+                                <TextBlock Text="Perfil / Rasante" Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                                <ComboBox x:Name="CmbPerfiles" DropDownOpened="CmbPerfiles_DropDownOpened"/>
+
+                                <TextBlock Text="Superficie Terreno Natural (MDT)" Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                                <ComboBox x:Name="CmbSuperficies" Loaded="CmbSuperficies_Loaded" DropDownOpened="CmbSuperficies_DropDownOpened"/>
+
+                                <TextBlock Style="{StaticResource FieldLabel}" Margin="0,12,0,4">
+                                    <Run Text="% de Lt en tangente"/><Run Text=" (60–80%, num. 3.2.2.1)" Foreground="{StaticResource BrushTextMuted}"/>
+                                </TextBlock>
+                                <TextBox x:Name="TxtPctTangente" Text="66.7"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="VALIDACIONES APLICADAS" Style="{StaticResource CardHeading}"/>
+                                <Rectangle Height="1" Fill="{StaticResource BrushBorder}" Margin="0,8,0,10"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="5" Height="5" CornerRadius="2.5" Background="{StaticResource BrushAccent}" Margin="0,4,10,0" VerticalAlignment="Top"/>
+                                    <TextBlock Text="Pendiente longitudinal máxima — Tabla 4.2" Style="{StaticResource NoteText}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="5" Height="5" CornerRadius="2.5" Background="{StaticResource BrushAccent}" Margin="0,4,10,0" VerticalAlignment="Top"/>
+                                    <TextBlock Text="Longitud mínima de entretangencia vertical — Tabla 4.3" Style="{StaticResource NoteText}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="5" Height="5" CornerRadius="2.5" Background="{StaticResource BrushAccent}" Margin="0,4,10,0" VerticalAlignment="Top"/>
+                                    <TextBlock Text="Curvas verticales — L = K · A" Style="{StaticResource NoteText}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Button x:Name="BtnProcesarPerfil" Content="CONSTRUIR ESQUELETO Y RASANTE C3D" Style="{StaticResource ButtonSuccess}" Margin="0,18,0,0" Click="BtnProcesarPerfil_Click"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="3. TRANSV.">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16">
+                        <TextBlock Text="Peraltes y Bordes de Vía" Style="{StaticResource TabSectionTitle}"/>
+                        <TextBlock Text="Sección transversal y vehículo de diseño" Style="{StaticResource TabSectionSubtitle}" Margin="0,1,0,16"/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Ancho de Carril (m)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="TxtAnchoCarril" Text="3.65"/>
+
+                                <TextBlock Text="Vehículo de Diseño" Style="{StaticResource FieldLabel}" Margin="0,12,0,4"/>
+                                <ComboBox x:Name="CmbVehiculo">
+                                    <ComboBoxItem Content="C2 (Camión de dos ejes) | L = 11.00m"/>
+                                    <ComboBoxItem Content="C3 (Camión de tres ejes) | L = 11.40m"/>
+                                    <ComboBoxItem Content="T3-S2 (Tractocamión) | L = 20.89m" IsSelected="True"/>
+                                    <ComboBoxItem Content="Vehículo liviano (VL) | L = 5.00m"/>
+                                    <ComboBoxItem Content="Bus mediano | L = 10.91m"/>
+                                    <ComboBoxItem Content="Bus grande | L = 13.00m"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="RESOLUCIONES CIVIL 3D 2025" Style="{StaticResource CardHeading}"/>
+                                <Rectangle Height="1" Fill="{StaticResource BrushBorder}" Margin="0,8,0,10"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="5" Height="5" CornerRadius="2.5" Background="{StaticResource BrushInfo}" Margin="0,4,10,0" VerticalAlignment="Top"/>
+                                    <TextBlock Text="Desfases nativos dinámicos (BIM)" Style="{StaticResource NoteText}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="5" Height="5" CornerRadius="2.5" Background="{StaticResource BrushInfo}" Margin="0,4,10,0" VerticalAlignment="Top"/>
+                                    <TextBlock Text="Transición suave INVIAS forzada a Lt" Style="{StaticResource NoteText}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="5" Height="5" CornerRadius="2.5" Background="{StaticResource BrushInfo}" Margin="0,4,10,0" VerticalAlignment="Top"/>
+                                    <TextBlock Text="Vista oficial de peraltes (módulo C3D)" Style="{StaticResource NoteText}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Button x:Name="BtnProcesarTransversal" Content="CALCULAR TRANSVERSALES (C3D 2025)" Style="{StaticResource ButtonInfo}" Margin="0,18,0,0" Click="BtnProcesarTransversal_Click"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="4. REPORTES">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16">
+                        <TextBlock Text="Generador de Memorias" Style="{StaticResource TabSectionTitle}"/>
+                        <TextBlock Text="Documento de cálculo en formato Word" Style="{StaticResource TabSectionSubtitle}" Margin="0,1,0,16"/>
+
+                        <TextBlock Style="{StaticResource BodyText}" Margin="0,0,0,16">
+                            Este módulo extrae toda la geometría del alineamiento y la rasante para compilar la Memoria de Cálculo oficial conforme al Manual INVIAS 2008.
+                        </TextBlock>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="DOCUMENTO ANALÍTICO INTEGRAL" Style="{StaticResource CardHeading}"/>
+                                <Rectangle Height="1" Fill="{StaticResource BrushBorder}" Margin="0,8,0,12"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Border Width="20" Height="20" CornerRadius="10" Background="{StaticResource BrushInputBackground}" BorderBrush="{StaticResource BrushBorderLight}" BorderThickness="1" VerticalAlignment="Top">
+                                        <TextBlock Text="1" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Fórmulas de radio mínimo y cuadros normativos" Style="{StaticResource NoteText}" Margin="10,2,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Border Width="20" Height="20" CornerRadius="10" Background="{StaticResource BrushInputBackground}" BorderBrush="{StaticResource BrushBorderLight}" BorderThickness="1" VerticalAlignment="Top">
+                                        <TextBlock Text="2" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Ecuación de la parábola, factor K y cuadros" Style="{StaticResource NoteText}" Margin="10,2,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="20" Height="20" CornerRadius="10" Background="{StaticResource BrushInputBackground}" BorderBrush="{StaticResource BrushBorderLight}" BorderThickness="1" VerticalAlignment="Top">
+                                        <TextBlock Text="3" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Cálculo de transiciones y sobreanchos" Style="{StaticResource NoteText}" Margin="10,2,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Button x:Name="BtnExportarMemoria" Content="EXPORTAR MEMORIA A WORD (.DOC)" Style="{StaticResource ButtonPrimary}" Height="40" Margin="0,18,0,0" Click="BtnExportarMemoria_Click"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</UserControl>
