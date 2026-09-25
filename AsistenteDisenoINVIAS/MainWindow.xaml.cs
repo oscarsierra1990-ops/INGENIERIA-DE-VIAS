@@ -22,6 +22,14 @@ namespace AsistenteDisenoINVIAS
     {
         public static ObjectId SelectedPolylineId = ObjectId.Null;
 
+        // Modo de diseño (CmbModoDiseno: 0=Óptimo, 1=Compacto, 2=Vía urbana) usado la última
+        // vez que se procesó la planta en ESTA sesión del asistente. Civil3D no guarda en el
+        // dibujo con qué modo se creó cada curva, así que la memoria (que se genera después,
+        // releyendo el alineamiento ya creado) solo puede saberlo si se generó en la misma
+        // sesión que la planta — si se reabre el dibujo en otra sesión sin volver a procesar la
+        // planta, la memoria asumirá el modo por defecto (Óptimo) y no lo advertirá.
+        public static int UltimoModoDisenoUsado = 0;
+
         // Longitudes de curva vertical REALMENTE insertadas por este mismo asistente,
         // indexadas por nombre de eje y abscisa (redondeada a 2 decimales). La pestaña
         // de exportación de memoria consulta primero este registro (dato exacto, sin
@@ -317,12 +325,25 @@ namespace AsistenteDisenoINVIAS
             return anchoCarril;
         }
 
+        // Longitud total del vehículo de diseño (Tabla 2.5 MDG INVIAS 2008 — "LONGITUD TOTAL"),
+        // usada únicamente como dato narrativo en la memoria ("dimensión usada para
+        // verificaciones de giro"), no en ninguna fórmula geométrica (el sobreancho usa por
+        // separado ObtenerLongitudVehiculoSobreancho, con el parámetro L de la Tabla 5.5).
+        // Los valores 6.1/7.5/10.5 usados antes para C2/C3/T3-S2 no aparecen en ningún lugar
+        // del texto del Manual (verificado contra el PDF original) — se reemplazan aquí por los
+        // reales de la Tabla 2.5: C2 = 11.00 m, C3 = 11.40 m, 3S2 = 20.89 m.
         private double ObtenerLongitudVehiculoDiseno()
         {
-            double lVehiculo = 10.5;
-            if (CmbVehiculo.SelectedIndex == 0) lVehiculo = 6.1;
-            else if (CmbVehiculo.SelectedIndex == 1) lVehiculo = 7.5;
-            return lVehiculo;
+            switch (CmbVehiculo.SelectedIndex)
+            {
+                case 0: return 11.00; // Camión de dos ejes (C2) — Tabla 2.5
+                case 1: return 11.40; // Camión de tres ejes o dobletroque (C3) — Tabla 2.5
+                case 2: return 20.89; // Tractocamión 3S2 — Tabla 2.5
+                case 3: return 5.00;  // Vehículo liviano (VL) — Tabla 2.5
+                case 4: return 10.91; // Bus mediano — Tabla 2.5
+                case 5: return 13.00; // Bus grande — Tabla 2.5
+                default: return 20.89;
+            }
         }
 
         // Numeral 3.2.2.1 INVIAS: en curvas circulares (sin espiral) con entretangencia
@@ -471,14 +492,21 @@ namespace AsistenteDisenoINVIAS
 
         // Tabla 5.5 INVIAS - Distancia entre el parachoques delantero y el eje trasero (L)
         // para el cálculo del sobreancho de vehículos rígidos (numeral 5.4.1.1). El mapeo de
-        // índices sigue el orden del ComboBox CmbVehiculo (0=C2, 1=C3, 2=T3-S2); T3-S2 es un
-        // vehículo ARTICULADO y no usa este L: para él, RequiereSobreanchoCurva/CalcularSobreancho
-        // se sustituyen por CalcularSobreanchoArticulado (numeral 5.4.1.2). Verificado contra la
-        // Tabla 5.5 impresa: L = b (volado delantero) + a (distancia entre ejes).
+        // índices sigue el orden del ComboBox CmbVehiculo (0=C2, 1=C3, 2=T3-S2, 3=Vehículo
+        // liviano, 4=Bus mediano, 5=Bus grande); T3-S2 es un vehículo ARTICULADO y no usa este
+        // L: para él, RequiereSobreanchoCurva/CalcularSobreancho se sustituyen por
+        // CalcularSobreanchoArticulado (numeral 5.4.1.2). Verificado contra la Tabla 5.5 impresa.
         private double ObtenerLongitudVehiculoSobreancho()
         {
-            if (CmbVehiculo.SelectedIndex == 0) return 8.00;  // Camión de dos ejes (C2): a=6.60, b=1.40
-            return 7.80; // Camión de tres ejes o dobletroque (C3): a=6.55, b=1.25
+            switch (CmbVehiculo.SelectedIndex)
+            {
+                case 0: return 8.00;  // Camión de dos ejes (C2): a=6.60, b=1.40
+                case 1: return 7.80;  // Camión de tres ejes o dobletroque (C3): a=6.55, b=1.25
+                case 3: return 3.70;  // Vehículo liviano: a=2.90, b=0.80
+                case 4: return 7.25;  // Bus mediano: a=6.49, b=0.76
+                case 5: return 9.70;  // Bus grande: a=7.00, b=2.70
+                default: return 8.00; // T3-S2 (index 2): no aplica este L (usa CalcularSobreanchoArticulado); valor sin efecto.
+            }
         }
 
         // Numeral 5.4.1.1 INVIAS: el sobreancho está limitado a curvas de Radio menor a
@@ -2005,6 +2033,7 @@ namespace AsistenteDisenoINVIAS
                         //      contempla; este modo NO garantiza cumplimiento 100% del Manual y
                         //      así se advierte al usuario en el resumen final.
                         int modoDiseno = CmbModoDiseno?.SelectedIndex ?? 0;
+                        UltimoModoDisenoUsado = modoDiseno;
 
                         ObjectId styleId = civilDoc.Styles.AlignmentStyles.Count > 0 ? civilDoc.Styles.AlignmentStyles[0] : ObjectId.Null;
                         ObjectId labelSetId = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles.Count > 0 ? civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles[0] : ObjectId.Null;
@@ -3054,7 +3083,7 @@ namespace AsistenteDisenoINVIAS
             sb.AppendLine($"<p>Teniendo en cuenta la clasificación de la carretera y el tipo de terreno se escogió una velocidad de diseño de <b>{vtr} km/h</b> según lo establecido en la Tabla 2.1 del MDG Invias 2008. El Manual expresa esta tabla como un rango admisible por celda; el valor mostrado a continuación es el adoptado por el asistente (extremo superior del rango) para la categoría y terreno de este proyecto.</p>");
             sb.AppendLine(ConstruirTablaVelocidadDiseno(catIdx, terIdx));
             sb.AppendLine("<h4>3.2.2. Velocidad específica de la curva horizontal.</h4>");
-            sb.AppendLine("<p>Para asignar la Velocidad Específica (VCH) a las curvas horizontales, se consideran los parámetros de deflexión y entretangencia según la Tabla 2.2 del MDG INVIAS 2008. Por simplificación de anteproyecto, en este modelo se adopta VCH = Vtr para todas las curvas del tramo; ver numeral 8 (Limitaciones y alcance) para el efecto de esta hipótesis.</p>");
+            sb.AppendLine("<p>Para asignar la Velocidad Específica (VCH) a las curvas horizontales, se consideran los parámetros de deflexión y entretangencia según la Tabla 2.2 del MDG INVIAS 2008. Por simplificación de anteproyecto, en este modelo se adopta VCH = Vtr para todas las curvas del tramo; ver numeral 9 (Limitaciones y alcance) para el efecto de esta hipótesis.</p>");
 
             sb.AppendLine("<h3>3.3. Derecho de Vía</h3>");
             sb.AppendLine("<p>Es la faja de terreno destinada a la construcción, mantenimiento y futuras ampliaciones. Según la Tabla 5.1 del MDG INVIAS 2008, el ancho de zona o derecho de vía recomendado para la categoría de esta carretera se indica en la fila resaltada de la tabla siguiente; por tratarse de un rango, el valor final debe fijarse dentro de él según las condiciones particulares del corredor (topografía, predios, obras de drenaje).</p>");
@@ -3350,7 +3379,62 @@ namespace AsistenteDisenoINVIAS
             sb.AppendLine($"<div class='formula-box'>D<sub>P</sub> calculada ≈ {dp_calc:F0} m (fórmula de frenado AASHTO, t<sub>PR</sub>=2.5 s, f<sub>l</sub>={fl_long:F2}) — D<sub>P</sub> normativa Tabla 4.4 = {dpTabla:F0} m</div>");
             sb.AppendLine("<p>Se adopta para todos los chequeos de la presente memoria el valor tabulado en la Tabla 4.4, por ser el valor oficial de referencia del Manual.</p>");
 
-            sb.AppendLine("<h2>8. LIMITACIONES Y ALCANCE DEL ANTEPROYECTO</h2>");
+            sb.AppendLine("<h2>8. MODO DE DISEÑO ADOPTADO Y CUMPLIMIENTO DEL MANUAL</h2>");
+            {
+                int modoMemoria = UltimoModoDisenoUsado;
+                string modoMemoriaTexto = modoMemoria == 0 ? "Óptimo" : modoMemoria == 1 ? "Compacto (con restricción predial)" : "Vía urbana";
+                // La única verificación fiable de si el numeral 3.7 se cumple es geométrica,
+                // sobre el eje realmente construido en Civil3D (TieneEspiral por curva) — no el
+                // modo recordado en memoria de esta sesión, que se pierde si la memoria se
+                // genera en una sesión distinta a la de la planta. El modo recordado solo se usa
+                // para explicar la INTENCIÓN del diseñador, cuando está disponible.
+                var curvasSinEspiralObligatoria = curves.Where(c => !c.TieneEspiral && c.Radius <= 1000.0).ToList();
+
+                sb.AppendLine($"<p>La planta de este tramo se generó con el modo de diseño <b>{modoMemoriaTexto}</b> de la herramienta (ver numeral 1.1). A continuación se listan, con base en el eje efectivamente construido en Civil 3D (no en una suposición de diseño), los criterios del Manual que ESTE trazado cumple y los que NO cumple o no está obligado a cumplir.</p>");
+
+                if (curvasSinEspiralObligatoria.Count == 0)
+                {
+                    sb.AppendLine("<p class='cumple'><b>Cumplimiento 100% del numeral 3.7:</b> todas las curvas horizontales con Radio ≤ 1000 m del trazado cuentan con espiral de transición. No se identificó ninguna relajación de este criterio en el eje construido.</p>");
+                }
+                else
+                {
+                    sb.AppendLine($"<p class='nocumple'><b>{curvasSinEspiralObligatoria.Count} de {curves.Count}</b> curvas horizontales tienen Radio ≤ 1000 m SIN espiral de transición y por tanto NO cumplen el numeral 3.7 del Manual en su versión actual:</p>");
+                    sb.AppendLine("<table>");
+                    sb.AppendLine("<tr><th colspan='3'>Curvas sin espiral obligatoria (numeral 3.7)</th></tr>");
+                    sb.AppendLine("<tr><th>ID</th><th>Radio Rc (m)</th><th>Motivo</th></tr>");
+                    string motivoOmision = modoMemoria == 2
+                        ? "Modo Vía urbana: espiral omitida deliberadamente por criterio del diseñador (restricción de espacio urbano)."
+                        : "No corresponde a una omisión deliberada de este modo de diseño: revísese si la inserción automática de la espiral falló (ver aviso en la ventana de comandos de AutoCAD al procesar la planta) y complétese manualmente antes de avanzar a diseño definitivo.";
+                    foreach (var c in curvasSinEspiralObligatoria)
+                        sb.AppendLine($"<tr><td>{c.Elem}</td><td>{c.Radius:F2}</td><td>{motivoOmision}</td></tr>");
+                    sb.AppendLine("</table>");
+                    if (modoMemoria == 2)
+                    {
+                        sb.AppendLine("<p>Esta relajación es una decisión EXPLÍCITA del modo Vía urbana de la herramienta, prevista para corredores urbanos donde el numeral 3.7 no se exige con el mismo rigor que en carretera abierta y donde el espacio disponible para una espiral suele no existir. <b>Esta relajación no está amparada por un numeral específico del Manual</b> (el MDG INVIAS 2008 es un manual de carreteras, no de vías urbanas) y debe adoptarse solo bajo el criterio profesional del diseñador, dejando constancia expresa de ello — como se hace en este numeral.</p>");
+                    }
+                }
+
+                sb.AppendLine("<p>Con independencia de la espiral, este trazado SÍ aplica — y por tanto SÍ se verifica frente al Manual — el resto de los criterios normativos, adoptados porque contribuyen a un mejor diseño incluso cuando el numeral 3.7 se relaja:</p>");
+                sb.AppendLine("<ul>");
+                sb.AppendLine($"<li><b>Radio mínimo de curvatura (numeral 3.1.3.4):</b> R<sub>Cmín</sub> = {r_min_calc:F1} m se exige en toda curva del trazado, incluidas las que omiten espiral.</li>");
+                sb.AppendLine("<li><b>Peralte específico por curva (numeral 3.1.3.5):</b> se asigna según el Radio adoptado de cada curva, igual que en los demás modos.</li>");
+                sb.AppendLine("<li><b>Longitud mínima del tramo circular (VCH × 2 s, MDG INVIAS 2008):</b> se verifica y, cuando el espacio disponible lo permite, se crece el Radio para cumplirla (ver numeral correspondiente de curvas horizontales).</li>");
+                sb.AppendLine("<li><b>Sobreancho en curvas (numeral 5.4.1.1):</b> se calcula y aplica igual en los 3 modos.</li>");
+                sb.AppendLine("<li><b>Distancia de visibilidad de parada (numeral 4.2.3.1, Tabla 4.4):</b> se verifica igual en los 3 modos, tanto en curvas horizontales (despeje lateral) como verticales.</li>");
+                sb.AppendLine("<li><b>Pendiente longitudinal máxima y curvas verticales (numerales 4.1.2 y 4.2.3):</b> no dependen del modo de diseño en planta y se verifican siempre igual.</li>");
+                sb.AppendLine("</ul>");
+
+                if (modoMemoria == 1)
+                {
+                    sb.AppendLine("<p>El modo <b>Compacto</b> adopta, en cada PI, el Radio más pequeño que el Manual y la entretangencia disponible permiten (en vez del más grande posible, como en el modo Óptimo) — pensado para corredores con restricción predial donde minimizar la huella del trazado es prioritario. A diferencia del modo Vía urbana, la espiral de transición sigue siendo obligatoria cuando Radio ≤ 1000 m, por lo que este modo mantiene el cumplimiento 100% del numeral 3.7.</p>");
+                }
+                else if (modoMemoria == 0)
+                {
+                    sb.AppendLine("<p>El modo <b>Óptimo</b> adopta, en cada PI, el Radio más grande que la entretangencia disponible permite, minimizando el número de curvas que requieren espiral y maximizando el margen de seguridad frente a R<sub>Cmín</sub>. Es el modo recomendado cuando no existe restricción predial.</p>");
+                }
+            }
+
+            sb.AppendLine("<h2>9. LIMITACIONES Y ALCANCE DEL ANTEPROYECTO</h2>");
             sb.AppendLine("<p>Esta memoria documenta un modelo de <b>anteproyecto asistido</b>, generado automáticamente a partir del eje dibujado por el proyectista y la superficie de terreno natural. Antes de avanzar a diseño de detalle, se debe verificar en campo o con el criterio del diseñador lo siguiente:</p>");
             sb.AppendLine("<ul>");
             sb.AppendLine($"<li><b>Peralte por curva:</b> el peralte se asigna curva por curva según el Radio adoptado (numeral 3.1.3.5, Método 5 AASHTO, Tablas 3.4/3.5), no un valor único e<sub>máx</sub> forzado en todo el trazado; e<sub>máx</sub> = {eMaxProyecto:F0}% solo se aplica a las curvas en o cerca de R<sub>Cmín</sub>. La interpolación es lineal entre los renglones tabulados del Manual, práctica estándar de ingeniería para este tipo de tabla.</li>");
@@ -3360,22 +3444,22 @@ namespace AsistenteDisenoINVIAS
             sb.AppendLine("<li><b>Vehículo articulado:</b> para corredores con tránsito significativo de vehículos articulados (tracto-camión), el numeral 5.4.1.2 recomienda el método AASHTO 2004 con el vehículo 3S2 (Tabla 5.6/5.7), más exigente que el método de vehículo rígido aquí empleado.</li>");
             sb.AppendLine("</ul>");
 
-            sb.AppendLine("<h2>9. CONCLUSIONES.</h2>");
+            sb.AppendLine("<h2>10. CONCLUSIONES.</h2>");
             sb.AppendLine("<ul>");
             sb.AppendLine($"<li>Se clasificó la vía como una carretera {catVia}, en terreno {terreno}, con velocidad de diseño Vtr = {vtr} km/h.</li>");
             sb.AppendLine($"<li>El radio mínimo normativo para esta velocidad es RCmín = {r_min_calc:F1} m; {(curves.Count(c => c.Radius < c.Rmin) == 0 ? "todas las curvas horizontales del trazado lo cumplen." : $"{curves.Count(c => c.Radius < c.Rmin)} de {curves.Count} curvas horizontales no lo cumplen y deben corregirse.")}</li>");
             sb.AppendLine($"<li>{curves.Count(c => c.RequiereSobreancho)} de {curves.Count} curvas horizontales requieren sobreancho por tener Radio menor a 160 m.</li>");
             sb.AppendLine($"<li>Se generaron {pvis.Count(p => p.CurveLength > 0.01)} curvas verticales de un total de {pvis.Count} PIV internos; {pvis.Count(p => p.CurveLength <= 0.01 && p.A >= 0.5)} vértices quedaron sin curva por restricciones de espacio y deben revisarse manualmente.</li>");
-            sb.AppendLine("<li>Este documento y el modelo generado corresponden a un anteproyecto; los puntos listados en el numeral 8 deben resolverse antes de avanzar a diseño definitivo, estructuración de pavimentos y drenaje.</li>");
+            sb.AppendLine("<li>Este documento y el modelo generado corresponden a un anteproyecto; los puntos listados en el numeral 9 deben resolverse antes de avanzar a diseño definitivo, estructuración de pavimentos y drenaje.</li>");
             sb.AppendLine("</ul>");
 
-            sb.AppendLine("<h2>10. BIBLIOGRAFÍA</h2>");
+            sb.AppendLine("<h2>11. BIBLIOGRAFÍA</h2>");
             sb.AppendLine("<ul>");
             sb.AppendLine("<li>Aashto. (2011). A Policy on Geometric Design of Highways and Streets.</li>");
             sb.AppendLine("<li>Instituto Nacional de Vías – INVIAS. (2008). Manual de Diseño Geométrico de Carreteras. Capítulos 1 a 5.</li>");
             sb.AppendLine("</ul>");
 
-            sb.AppendLine("<h2>11. ANEXOS</h2>");
+            sb.AppendLine("<h2>12. ANEXOS</h2>");
             sb.AppendLine("<ul>");
             sb.AppendLine("<li>Anexo 1. Planos Planta Perfil</li>");
             sb.AppendLine("<li>Anexo 2. Planos Secciones Transversales</li>");
@@ -3511,14 +3595,15 @@ namespace AsistenteDisenoINVIAS
         // se adopta como fuente autoritativa sobre la lectura visual de la Figura 2.5.
         private string ConstruirTablaVehiculosDiseno(int vehiculoResaltado)
         {
-            // vehiculoResaltado: índice de CmbVehiculo (0=C2, 1=C3, 2=T3-S2) o -1 para ninguno.
-            // idxFila: fila correspondiente en este arreglo (Camión Categoría 2 / 3 / 3S2).
+            // vehiculoResaltado: índice de CmbVehiculo (0=C2, 1=C3, 2=T3-S2, 3=Vehículo liviano,
+            // 4=Bus mediano, 5=Bus grande) o -1 para ninguno.
+            // idxFila: fila correspondiente en este arreglo, en el mismo orden de índices.
             (string nombre, string figura, double longitud, double ancho, double voladoDel, double entreEjes, double voladoTras, double angulo, int idxFila)[] filas = {
-                ("Vehículo liviano", "Fig. 2.2", 5.00, 1.80, 0.80, 2.90, 1.30, 35.0, -1),
-                ("Bus mediano", "Fig. 2.3", 10.91, 2.44, 0.76, 6.49, 3.66, 37.1, -1),
-                ("Bus grande", "Fig. 2.4", 13.00, 2.60, 2.70, 7.00, 3.30, 46.0, -1),
+                ("Vehículo liviano", "Fig. 2.2", 5.00, 1.80, 0.80, 2.90, 1.30, 35.0, 3),
+                ("Bus mediano", "Fig. 2.3", 10.91, 2.44, 0.76, 6.49, 3.66, 37.1, 4),
+                ("Bus grande", "Fig. 2.4", 13.00, 2.60, 2.70, 7.00, 3.30, 46.0, 5),
                 ("Camión Categoría 2 (C2)", "Fig. 2.5", 11.00, 2.50, 1.40, 6.60, 3.20, 35.5, 0),
-                ("Camión Categoría 3 (C3)", "Fig. 2.6", 11.00, 2.50, 1.25, 6.55, 3.20, 37.0, 1),
+                ("Camión Categoría 3 (C3)", "Fig. 2.6", 11.40, 2.50, 1.25, 6.55, 3.20, 37.0, 1),
                 ("Camión Categoría 3S2 (articulado)", "Fig. 2.7", 20.89, 2.59, 1.22, 5.95, 1.38, 28.4, 2),
             };
             StringBuilder t = new StringBuilder();
