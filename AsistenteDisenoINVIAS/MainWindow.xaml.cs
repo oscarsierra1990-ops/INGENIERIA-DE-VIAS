@@ -2112,7 +2112,12 @@ namespace AsistenteDisenoINVIAS
                 return;
             }
             if (CmbSuperficieTrazado.SelectedItem == null) { CargarSuperficiesEnComboBox(CmbSuperficieTrazado); return; }
-            ObjectId surfaceId = (ObjectId)((ComboBoxItem)CmbSuperficieTrazado.SelectedItem).Tag;
+            // Se guarda el NOMBRE, no el ObjectId cacheado en el ComboBox: si la superficie TIN
+            // se reconstruyó (edición, recálculo) desde que se llenó la lista, ese ObjectId
+            // queda apuntando a un objeto ya borrado internamente por Civil3D — error real
+            // observado: "ePermanentlyErased". Se vuelve a resolver por nombre justo antes de
+            // usarla, dentro de la misma transacción en la que se usa, para evitar el problema.
+            string nombreSuperficie = ((ComboBoxItem)CmbSuperficieTrazado.SelectedItem).Content?.ToString() ?? "";
 
             double.TryParse(TxtPasoTrazado.Text, out double paso);
             if (paso <= 0) paso = 20.0;
@@ -2124,60 +2129,66 @@ namespace AsistenteDisenoINVIAS
             double pendienteMaximaFraccion = ObtenerPendienteMaximaINVIAS(catIdx, vtr) / 100.0;
 
             int metodo = CmbMetodoTrazado.SelectedIndex;
+            CivilDocument civilDoc = CivilApplication.ActiveDocument;
 
             try
             {
-                Autodesk.Civil.DatabaseServices.Surface? surface;
-                using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
-                {
-                    surface = tr.GetObject(surfaceId, OpenMode.ForRead) as Autodesk.Civil.DatabaseServices.Surface;
-                    tr.Commit();
-                }
-                if (surface == null) { MessageBox.Show("No se pudo abrir la superficie seleccionada.", "Error", MessageBoxButton.OK, MessageBoxImage.Error); return; }
-
                 List<(double x, double y, double z)> rutaCruda;
                 string error;
                 string resumenMetodo;
-
-                if (metodo == 0)
-                {
-                    rutaCruda = TrazarPendienteConstante(surface, _trazadoPuntoA.Value, _trazadoPuntoB.Value, pendienteMaximaFraccion, paso, out int pasosExcedidos, out error);
-                    resumenMetodo = pasosExcedidos > 0
-                        ? $"Línea a pendiente constante — {pasosExcedidos} de {rutaCruda.Count} pasos NO pudieron respetar la pendiente máxima ({pendienteMaximaFraccion * 100:F1}%) por terreno más escarpado de lo admisible en ese tramo; revíselos en el dibujo."
-                        : $"Línea a pendiente constante — todos los pasos respetan la pendiente máxima ({pendienteMaximaFraccion * 100:F1}%).";
-                }
-                else
-                {
-                    rutaCruda = TrazarCostoMinimo(surface, _trazadoPuntoA.Value, _trazadoPuntoB.Value, pendienteMaximaFraccion, paso, out error);
-                    resumenMetodo = $"Ruta de costo mínimo — pendiente máxima ({pendienteMaximaFraccion * 100:F1}%) respetada como restricción dura en toda la ruta.";
-                }
-
-                if (rutaCruda.Count < 2)
-                {
-                    MessageBox.Show($"No se pudo generar el trazado.\n\n{error}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                var puntos2d = rutaCruda.Select(p => new Point2d(p.x, p.y)).ToList();
-                var simplificados = SimplificarDouglasPeucker(puntos2d, tolerancia);
-
-                if (simplificados.Count < 2)
-                {
-                    MessageBox.Show("La simplificación dejó menos de 2 puntos; reduzca la tolerancia.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
+                List<Point2d> simplificados;
 
                 using (DocumentLock docLock = doc.LockDocument())
                 {
-                    using (Transaction tr2 = doc.Database.TransactionManager.StartTransaction())
+                    using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                     {
-                        BlockTableRecord btr = (BlockTableRecord)tr2.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite);
+                        Autodesk.Civil.DatabaseServices.Surface? surface = null;
+                        foreach (ObjectId id in civilDoc.GetSurfaceIds())
+                        {
+                            var candidata = tr.GetObject(id, OpenMode.ForRead) as Autodesk.Civil.DatabaseServices.Surface;
+                            if (candidata != null && candidata.Name == nombreSuperficie) { surface = candidata; break; }
+                        }
+                        if (surface == null)
+                        {
+                            MessageBox.Show($"No se encontró la superficie '{nombreSuperficie}'. Puede haber sido renombrada, eliminada o reconstruida — abra de nuevo el desplegable de superficies y vuelva a seleccionarla.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                            return;
+                        }
+
+                        if (metodo == 0)
+                        {
+                            rutaCruda = TrazarPendienteConstante(surface, _trazadoPuntoA.Value, _trazadoPuntoB.Value, pendienteMaximaFraccion, paso, out int pasosExcedidos, out error);
+                            resumenMetodo = pasosExcedidos > 0
+                                ? $"Línea a pendiente constante — {pasosExcedidos} de {rutaCruda.Count} pasos NO pudieron respetar la pendiente máxima ({pendienteMaximaFraccion * 100:F1}%) por terreno más escarpado de lo admisible en ese tramo; revíselos en el dibujo."
+                                : $"Línea a pendiente constante — todos los pasos respetan la pendiente máxima ({pendienteMaximaFraccion * 100:F1}%).";
+                        }
+                        else
+                        {
+                            rutaCruda = TrazarCostoMinimo(surface, _trazadoPuntoA.Value, _trazadoPuntoB.Value, pendienteMaximaFraccion, paso, out error);
+                            resumenMetodo = $"Ruta de costo mínimo — pendiente máxima ({pendienteMaximaFraccion * 100:F1}%) respetada como restricción dura en toda la ruta.";
+                        }
+
+                        if (rutaCruda.Count < 2)
+                        {
+                            MessageBox.Show($"No se pudo generar el trazado.\n\n{error}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                            return;
+                        }
+
+                        var puntos2d = rutaCruda.Select(p => new Point2d(p.x, p.y)).ToList();
+                        simplificados = SimplificarDouglasPeucker(puntos2d, tolerancia);
+
+                        if (simplificados.Count < 2)
+                        {
+                            MessageBox.Show("La simplificación dejó menos de 2 puntos; reduzca la tolerancia.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            return;
+                        }
+
+                        BlockTableRecord btr = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite);
                         Polyline pline = new Polyline();
                         for (int i = 0; i < simplificados.Count; i++) pline.AddVertexAt(i, simplificados[i], 0, 0, 0);
-                        pline.Layer = ObtenerNombreCapaActual(tr2, doc.Database);
+                        pline.Layer = ObtenerNombreCapaActual(tr, doc.Database);
                         btr.AppendEntity(pline);
-                        tr2.AddNewlyCreatedDBObject(pline, true);
-                        tr2.Commit();
+                        tr.AddNewlyCreatedDBObject(pline, true);
+                        tr.Commit();
 
                         SelectedPolylineId = pline.ObjectId;
                     }
