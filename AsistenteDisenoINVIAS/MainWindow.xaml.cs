@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -67,18 +67,22 @@ namespace AsistenteDisenoINVIAS
             longitud = 0.0;
             try { longitud = (double)curveEntity.Length; if (longitud > 0) return true; } catch { }
             try { longitud = (double)curveEntity.CurveLength; if (longitud > 0) return true; } catch { }
-            try {
+            try
+            {
                 double l1 = (double)curveEntity.CurveLengthIn;
                 double l2 = (double)curveEntity.CurveLengthOut;
                 longitud = l1 + l2;
                 if (longitud > 0) return true;
-            } catch { }
-            try {
+            }
+            catch { }
+            try
+            {
                 double l1 = (double)curveEntity.LengthIn;
                 double l2 = (double)curveEntity.LengthOut;
                 longitud = l1 + l2;
                 if (longitud > 0) return true;
-            } catch { }
+            }
+            catch { }
             return false;
         }
 
@@ -1741,17 +1745,25 @@ namespace AsistenteDisenoINVIAS
             int terIdx = CmbTipoTerreno.SelectedIndex;
             int targetVtr = 30;
 
-            if (catIdx == 0) {
+            if (catIdx == 0)
+            {
                 if (terIdx == 0) targetVtr = 110; else if (terIdx == 1) targetVtr = 100; else if (terIdx == 2) targetVtr = 80; else targetVtr = 70;
-            } else if (catIdx == 1) {
+            }
+            else if (catIdx == 1)
+            {
                 if (terIdx == 0) targetVtr = 90; else if (terIdx == 1) targetVtr = 80; else if (terIdx == 2) targetVtr = 70; else targetVtr = 60;
-            } else if (catIdx == 2) {
+            }
+            else if (catIdx == 2)
+            {
                 if (terIdx == 0) targetVtr = 80; else if (terIdx == 1) targetVtr = 70; else if (terIdx == 2) targetVtr = 60; else targetVtr = 40;
-            } else {
+            }
+            else
+            {
                 if (terIdx == 0) targetVtr = 50; else if (terIdx == 1) targetVtr = 40; else if (terIdx == 2) targetVtr = 30; else targetVtr = 20;
             }
 
-            foreach (ComboBoxItem item in CmbVtr.Items) {
+            foreach (ComboBoxItem item in CmbVtr.Items)
+            {
                 if (item.Content != null && item.Content.ToString() == targetVtr.ToString()) { CmbVtr.SelectedItem = item; break; }
             }
         }
@@ -2605,9 +2617,11 @@ namespace AsistenteDisenoINVIAS
         // ==========================================
         // 🔹 PESTAÑA 2: RASANTE CON LÍMITES
         // ==========================================
-        private double ObtenerPendienteMaximaINVIAS(int catIdx, double vtr) {
+        private double ObtenerPendienteMaximaINVIAS(int catIdx, double vtr)
+        {
             int v = (int)vtr;
-            switch (catIdx) {
+            switch (catIdx)
+            {
                 case 0: if (v >= 120) return 4.0; if (v >= 100) return 5.0; return 6.0;
                 case 1: if (v >= 100) return 5.0; if (v >= 80) return 6.0; if (v >= 70) return 7.0; return 8.0;
                 case 2: if (v >= 80) return 6.0; if (v >= 70) return 7.0; if (v >= 60) return 8.0; if (v >= 50) return 9.0; return 10.0;
@@ -2625,7 +2639,8 @@ namespace AsistenteDisenoINVIAS
             ObjectId surfaceId = (ObjectId)((ComboBoxItem)CmbSuperficies.SelectedItem).Tag;
 
             ObjectId alignId = ObtenerEjeSeleccionado(db, civilDoc);
-            if (alignId == ObjectId.Null) {
+            if (alignId == ObjectId.Null)
+            {
                 MessageBox.Show("No se encontró el Eje Central válido.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -2654,176 +2669,180 @@ namespace AsistenteDisenoINVIAS
             {
                 try
                 {
-                using (Transaction tr = db.TransactionManager.StartTransaction())
-                {
-                    Alignment? alignment = tr.GetObject(alignId, OpenMode.ForRead) as Alignment;
-                    Autodesk.Civil.DatabaseServices.Surface? surface = tr.GetObject(surfaceId, OpenMode.ForRead) as Autodesk.Civil.DatabaseServices.Surface;
-                    if (alignment == null || surface == null) return;
-
-                    ObjectId profileStyleId = civilDoc.Styles.ProfileStyles.Count > 0 ? civilDoc.Styles.ProfileStyles[0] : ObjectId.Null;
-                    ObjectId profileLabelSetId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles.Count > 0 ? civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles[0] : ObjectId.Null;
-                    ObjectId profileViewStyleId = civilDoc.Styles.ProfileViewStyles.Count > 0 ? civilDoc.Styles.ProfileViewStyles[0] : ObjectId.Null;
-                    ObjectId bandSetStyleId = civilDoc.Styles.ProfileViewBandSetStyles.Count > 0 ? civilDoc.Styles.ProfileViewBandSetStyles[0] : ObjectId.Null;
-
-                    // Sufijo único por ejecución: antes el nombre del perfil TN, de la rasante y de
-                    // la vista de perfil dependían SOLO del nombre del eje ("TN_<eje>",
-                    // "Rasante_INVIAS_<eje>", "Perfil_<eje>"). Al volver a pulsar este botón sobre el
-                    // mismo eje (p. ej. después de editar la planta), Civil3D rechazaba el nombre
-                    // duplicado con una excepción que no estaba capturada, y eso terminaba cerrando
-                    // AutoCAD. Con el sufijo, cada ejecución crea un perfil y una vista nuevos, y el
-                    // selector CmbPerfiles permite elegir después cuál usar para la memoria.
-                    string sufijoPerfil = DateTime.Now.ToString("HHmmssfff");
-
-                    string profileTNName = "TN_" + alignment.Name + "_" + sufijoPerfil;
-                    if (!TryCrearPerfilDesdeSuperficie(civilDoc, profileTNName, alignId, alignment.Name, surfaceId, surface.Name, ObtenerNombreCapaActual(tr, db), db.Clayer, profileStyleId, profileLabelSetId, out ObjectId profileTNId, out string errorTN))
-                        throw new System.Exception($"No se pudo crear el perfil del terreno natural: {errorTN}");
-                    Profile? profileTN = tr.GetObject(profileTNId, OpenMode.ForWrite) as Profile;
-                    if (profileTN != null) profileTN.Color = Autodesk.AutoCAD.Colors.Color.FromColorIndex(ColorMethod.ByAci, 3);
-
-                    ObjectId layoutStyleId = civilDoc.Styles.ProfileStyles.Count > 1 ? civilDoc.Styles.ProfileStyles[1] : profileStyleId;
-                    string rasanteName = "Rasante_INVIAS_" + alignment.Name + "_" + sufijoPerfil;
-                    if (!TryCrearPerfilPorDiseno(civilDoc, rasanteName, alignId, alignment.Name, ObtenerNombreCapaActual(tr, db), db.Clayer, layoutStyleId, profileLabelSetId, out ObjectId rasanteId, out string errorRasante))
-                        throw new System.Exception($"No se pudo crear la rasante: {errorRasante}");
-                    Profile? rasante = tr.GetObject(rasanteId, OpenMode.ForWrite) as Profile;
-                    if (rasante != null) rasante.Color = Autodesk.AutoCAD.Colors.Color.FromColorIndex(ColorMethod.ByAci, 1);
-
-                    int curvasGeneradas = 0;
-                    int curvasFallidas = 0;
-                    int curvasAcortadas = 0;
-                    List<string> avisosCurvas = new List<string>();
-                    List<string> avisosAcortadas = new List<string>();
-
-                    if (profileTN != null && rasante != null)
+                    using (Transaction tr = db.TransactionManager.StartTransaction())
                     {
-                        List<PviDefinition> pviList = new List<PviDefinition>();
-                        pviList.Add(new PviDefinition { Station = alignment.StartingStation, Elevation = profileTN.ElevationAt(alignment.StartingStation), CurveLength = 0.0 });
+                        Alignment? alignment = tr.GetObject(alignId, OpenMode.ForRead) as Alignment;
+                        Autodesk.Civil.DatabaseServices.Surface? surface = tr.GetObject(surfaceId, OpenMode.ForRead) as Autodesk.Civil.DatabaseServices.Surface;
+                        if (alignment == null || surface == null) return;
 
-                        List<double> sampledStations = new List<double>();
-                        double currentSt = alignment.StartingStation + lMinTangente;
-                        while (currentSt <= alignment.EndingStation - lMinTangente) { sampledStations.Add(currentSt); currentSt += lMinTangente; }
+                        ObjectId profileStyleId = civilDoc.Styles.ProfileStyles.Count > 0 ? civilDoc.Styles.ProfileStyles[0] : ObjectId.Null;
+                        ObjectId profileLabelSetId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles.Count > 0 ? civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles[0] : ObjectId.Null;
+                        ObjectId profileViewStyleId = civilDoc.Styles.ProfileViewStyles.Count > 0 ? civilDoc.Styles.ProfileViewStyles[0] : ObjectId.Null;
+                        ObjectId bandSetStyleId = civilDoc.Styles.ProfileViewBandSetStyles.Count > 0 ? civilDoc.Styles.ProfileViewBandSetStyles[0] : ObjectId.Null;
 
-                        for (int i = 0; i < sampledStations.Count; i++)
+                        // Sufijo único por ejecución: antes el nombre del perfil TN, de la rasante y de
+                        // la vista de perfil dependían SOLO del nombre del eje ("TN_<eje>",
+                        // "Rasante_INVIAS_<eje>", "Perfil_<eje>"). Al volver a pulsar este botón sobre el
+                        // mismo eje (p. ej. después de editar la planta), Civil3D rechazaba el nombre
+                        // duplicado con una excepción que no estaba capturada, y eso terminaba cerrando
+                        // AutoCAD. Con el sufijo, cada ejecución crea un perfil y una vista nuevos, y el
+                        // selector CmbPerfiles permite elegir después cuál usar para la memoria.
+                        string sufijoPerfil = DateTime.Now.ToString("HHmmssfff");
+
+                        string profileTNName = "TN_" + alignment.Name + "_" + sufijoPerfil;
+                        if (!TryCrearPerfilDesdeSuperficie(civilDoc, profileTNName, alignId, alignment.Name, surfaceId, surface.Name, ObtenerNombreCapaActual(tr, db), db.Clayer, profileStyleId, profileLabelSetId, out ObjectId profileTNId, out string errorTN))
+                            throw new System.Exception($"No se pudo crear el perfil del terreno natural: {errorTN}");
+                        Profile? profileTN = tr.GetObject(profileTNId, OpenMode.ForWrite) as Profile;
+                        if (profileTN != null) profileTN.Color = Autodesk.AutoCAD.Colors.Color.FromColorIndex(ColorMethod.ByAci, 3);
+
+                        ObjectId layoutStyleId = civilDoc.Styles.ProfileStyles.Count > 1 ? civilDoc.Styles.ProfileStyles[1] : profileStyleId;
+                        string rasanteName = "Rasante_INVIAS_" + alignment.Name + "_" + sufijoPerfil;
+                        if (!TryCrearPerfilPorDiseno(civilDoc, rasanteName, alignId, alignment.Name, ObtenerNombreCapaActual(tr, db), db.Clayer, layoutStyleId, profileLabelSetId, out ObjectId rasanteId, out string errorRasante))
+                            throw new System.Exception($"No se pudo crear la rasante: {errorRasante}");
+                        Profile? rasante = tr.GetObject(rasanteId, OpenMode.ForWrite) as Profile;
+                        if (rasante != null) rasante.Color = Autodesk.AutoCAD.Colors.Color.FromColorIndex(ColorMethod.ByAci, 1);
+
+                        int curvasGeneradas = 0;
+                        int curvasFallidas = 0;
+                        int curvasAcortadas = 0;
+                        List<string> avisosCurvas = new List<string>();
+                        List<string> avisosAcortadas = new List<string>();
+
+                        if (profileTN != null && rasante != null)
                         {
-                            // IMPORTANTE: zPrev/stPrev se toman del punto YA ENCADENADO en pviList
-                            // (posiblemente ajustado por pMax en la iteración anterior), no de una
-                            // nueva lectura de la superficie de TN. Antes se releía el TN cada vez,
-                            // lo que podía dejar la pendiente de entrada (g1) inconsistente con la
-                            // cota realmente asignada al PVI anterior, y por tanto con la curva que
-                            // Civil3D construye de verdad entre ambos vértices.
-                            PviDefinition anterior = pviList[pviList.Count - 1];
-                            double stPrev = anterior.Station; double zPrev = anterior.Elevation;
+                            List<PviDefinition> pviList = new List<PviDefinition>();
+                            pviList.Add(new PviDefinition { Station = alignment.StartingStation, Elevation = profileTN.ElevationAt(alignment.StartingStation), CurveLength = 0.0 });
 
-                            double stCurr = sampledStations[i]; double zCurr = profileTN.ElevationAt(stCurr);
-                            double stNext = (i == sampledStations.Count - 1) ? alignment.EndingStation : sampledStations[i + 1]; double zNext = profileTN.ElevationAt(stNext);
+                            List<double> sampledStations = new List<double>();
+                            double currentSt = alignment.StartingStation + lMinTangente;
+                            while (currentSt <= alignment.EndingStation - lMinTangente) { sampledStations.Add(currentSt); currentSt += lMinTangente; }
 
-                            double g1 = ((zCurr - zPrev) / (stCurr - stPrev)) * 100.0;
-
-                            // El recorte por pMax se aplica ANTES de calcular g1 definitivo y A,
-                            // de modo que la decisión de generar curva (y su longitud) se basa en
-                            // las mismas pendientes que tendrá el perfil realmente construido.
-                            if (g1 > pMax) { zCurr = zPrev + (pMax / 100.0) * (stCurr - stPrev); g1 = pMax; }
-                            else if (g1 < -pMax) { zCurr = zPrev - (pMax / 100.0) * (stCurr - stPrev); g1 = -pMax; }
-
-                            double g2 = ((zNext - zCurr) / (stNext - stCurr)) * 100.0;
-
-                            double A = Math.Abs(g2 - g1);
-                            double calculatedLv = 0.0;
-
-                            if (A >= 0.5) {
-                                double kAplicado = (g1 > g2) ? kCrest : kSag;
-                                calculatedLv = Math.Max(kAplicado * A, lMinCurva);
-                            }
-                            pviList.Add(new PviDefinition { Station = stCurr, Elevation = zCurr, CurveLength = calculatedLv });
-                        }
-                        {
-                            PviDefinition ultimo = pviList[pviList.Count - 1];
-                            double zFinal = profileTN.ElevationAt(alignment.EndingStation);
-                            pviList.Add(new PviDefinition { Station = alignment.EndingStation, Elevation = zFinal, CurveLength = 0.0 });
-                        }
-
-                        // INSERCIÓN DE PVIs: se calcula el espacio realmente disponible frente al PVT
-                        // ya insertado (PVI anterior) y al siguiente PIV. Si Civil3D rechaza la longitud
-                        // propuesta (curvas solapadas), se reintenta con pasos más cortos, pero NUNCA por
-                        // debajo del mínimo normativo absoluto (lMinCurva, Tabla 4.4). Una curva que solo
-                        // cupo acortada por debajo de lo que exige K = L/A (numeral 4.2.3) queda instalada
-                        // -para no dejar un quiebre recto donde sí cabía una curva- pero se marca e informa
-                        // explícitamente como NO conforme, en vez de quedar oculta como un simple "éxito".
-                        const double FACTOR_MARGEN_SEGURIDAD = 0.95; // margen para no tocar exactamente el PVT/PIV vecino
-                        const double FACTOR_REINTENTO = 0.85;        // reducción por intento cuando Civil3D rechaza la longitud
-                        RegistroCurvasVerticales.Remove(alignment.Name);
-
-                        double pvtAnterior = alignment.StartingStation;
-                        for (int idx = 0; idx < pviList.Count; idx++)
-                        {
-                            PviDefinition pviDef = pviList[idx];
-                            bool esExtremo = (idx == 0 || idx == pviList.Count - 1);
-
-                            if (!esExtremo && pviDef.CurveLength >= lMinCurva)
+                            for (int i = 0; i < sampledStations.Count; i++)
                             {
-                                double longitudRequeridaPorK = pviDef.CurveLength;
-                                double stSiguiente = pviList[idx + 1].Station;
-                                double espacioDisponible = Math.Min(pviDef.Station - pvtAnterior, stSiguiente - pviDef.Station) * 2.0 * FACTOR_MARGEN_SEGURIDAD;
-                                double lvIntentar = Math.Min(longitudRequeridaPorK, Math.Max(espacioDisponible, 0.0));
-                                bool colocada = false;
+                                // IMPORTANTE: zPrev/stPrev se toman del punto YA ENCADENADO en pviList
+                                // (posiblemente ajustado por pMax en la iteración anterior), no de una
+                                // nueva lectura de la superficie de TN. Antes se releía el TN cada vez,
+                                // lo que podía dejar la pendiente de entrada (g1) inconsistente con la
+                                // cota realmente asignada al PVI anterior, y por tanto con la curva que
+                                // Civil3D construye de verdad entre ambos vértices.
+                                PviDefinition anterior = pviList[pviList.Count - 1];
+                                double stPrev = anterior.Station; double zPrev = anterior.Elevation;
 
-                                while (lvIntentar >= lMinCurva && !colocada)
+                                double stCurr = sampledStations[i]; double zCurr = profileTN.ElevationAt(stCurr);
+                                double stNext = (i == sampledStations.Count - 1) ? alignment.EndingStation : sampledStations[i + 1]; double zNext = profileTN.ElevationAt(stNext);
+
+                                double g1 = ((zCurr - zPrev) / (stCurr - stPrev)) * 100.0;
+
+                                // El recorte por pMax se aplica ANTES de calcular g1 definitivo y A,
+                                // de modo que la decisión de generar curva (y su longitud) se basa en
+                                // las mismas pendientes que tendrá el perfil realmente construido.
+                                if (g1 > pMax) { zCurr = zPrev + (pMax / 100.0) * (stCurr - stPrev); g1 = pMax; }
+                                else if (g1 < -pMax) { zCurr = zPrev - (pMax / 100.0) * (stCurr - stPrev); g1 = -pMax; }
+
+                                double g2 = ((zNext - zCurr) / (stNext - stCurr)) * 100.0;
+
+                                double A = Math.Abs(g2 - g1);
+                                double calculatedLv = 0.0;
+
+                                if (A >= 0.5)
                                 {
-                                    try {
-                                        rasante.PVIs.AddPVISymParabola(pviDef.Station, pviDef.Elevation, lvIntentar);
-                                        pvtAnterior = pviDef.Station + lvIntentar / 2.0;
-                                        colocada = true;
-                                        curvasGeneradas++;
-                                        RegistrarCurvaVertical(alignment.Name, pviDef.Station, lvIntentar);
+                                    double kAplicado = (g1 > g2) ? kCrest : kSag;
+                                    calculatedLv = Math.Max(kAplicado * A, lMinCurva);
+                                }
+                                pviList.Add(new PviDefinition { Station = stCurr, Elevation = zCurr, CurveLength = calculatedLv });
+                            }
+                            {
+                                PviDefinition ultimo = pviList[pviList.Count - 1];
+                                double zFinal = profileTN.ElevationAt(alignment.EndingStation);
+                                pviList.Add(new PviDefinition { Station = alignment.EndingStation, Elevation = zFinal, CurveLength = 0.0 });
+                            }
 
-                                        if (lvIntentar < longitudRequeridaPorK - 0.01)
+                            // INSERCIÓN DE PVIs: se calcula el espacio realmente disponible frente al PVT
+                            // ya insertado (PVI anterior) y al siguiente PIV. Si Civil3D rechaza la longitud
+                            // propuesta (curvas solapadas), se reintenta con pasos más cortos, pero NUNCA por
+                            // debajo del mínimo normativo absoluto (lMinCurva, Tabla 4.4). Una curva que solo
+                            // cupo acortada por debajo de lo que exige K = L/A (numeral 4.2.3) queda instalada
+                            // -para no dejar un quiebre recto donde sí cabía una curva- pero se marca e informa
+                            // explícitamente como NO conforme, en vez de quedar oculta como un simple "éxito".
+                            const double FACTOR_MARGEN_SEGURIDAD = 0.95; // margen para no tocar exactamente el PVT/PIV vecino
+                            const double FACTOR_REINTENTO = 0.85;        // reducción por intento cuando Civil3D rechaza la longitud
+                            RegistroCurvasVerticales.Remove(alignment.Name);
+
+                            double pvtAnterior = alignment.StartingStation;
+                            for (int idx = 0; idx < pviList.Count; idx++)
+                            {
+                                PviDefinition pviDef = pviList[idx];
+                                bool esExtremo = (idx == 0 || idx == pviList.Count - 1);
+
+                                if (!esExtremo && pviDef.CurveLength >= lMinCurva)
+                                {
+                                    double longitudRequeridaPorK = pviDef.CurveLength;
+                                    double stSiguiente = pviList[idx + 1].Station;
+                                    double espacioDisponible = Math.Min(pviDef.Station - pvtAnterior, stSiguiente - pviDef.Station) * 2.0 * FACTOR_MARGEN_SEGURIDAD;
+                                    double lvIntentar = Math.Min(longitudRequeridaPorK, Math.Max(espacioDisponible, 0.0));
+                                    bool colocada = false;
+
+                                    while (lvIntentar >= lMinCurva && !colocada)
+                                    {
+                                        try
                                         {
-                                            curvasAcortadas++;
-                                            avisosAcortadas.Add($"• PIV {FormatearAbscisa(pviDef.Station)}: curva instalada con {lvIntentar:F2} m (requería {longitudRequeridaPorK:F2} m por el criterio K de la Tabla 4.4); NO CUMPLE la distancia de visibilidad de parada. Revise/alargue la tangente vertical adyacente.");
+                                            rasante.PVIs.AddPVISymParabola(pviDef.Station, pviDef.Elevation, lvIntentar);
+                                            pvtAnterior = pviDef.Station + lvIntentar / 2.0;
+                                            colocada = true;
+                                            curvasGeneradas++;
+                                            RegistrarCurvaVertical(alignment.Name, pviDef.Station, lvIntentar);
+
+                                            if (lvIntentar < longitudRequeridaPorK - 0.01)
+                                            {
+                                                curvasAcortadas++;
+                                                avisosAcortadas.Add($"• PIV {FormatearAbscisa(pviDef.Station)}: curva instalada con {lvIntentar:F2} m (requería {longitudRequeridaPorK:F2} m por el criterio K de la Tabla 4.4); NO CUMPLE la distancia de visibilidad de parada. Revise/alargue la tangente vertical adyacente.");
+                                            }
                                         }
-                                    } catch {
-                                        lvIntentar *= FACTOR_REINTENTO;
+                                        catch
+                                        {
+                                            lvIntentar *= FACTOR_REINTENTO;
+                                        }
+                                    }
+
+                                    if (!colocada)
+                                    {
+                                        rasante.PVIs.AddPVI(pviDef.Station, pviDef.Elevation);
+                                        pvtAnterior = pviDef.Station;
+                                        curvasFallidas++;
+                                        avisosCurvas.Add($"• PIV {FormatearAbscisa(pviDef.Station)}: sin espacio suficiente entre tangentes verticales; quedó como quiebre recto.");
                                     }
                                 }
-
-                                if (!colocada)
+                                else
                                 {
                                     rasante.PVIs.AddPVI(pviDef.Station, pviDef.Elevation);
                                     pvtAnterior = pviDef.Station;
-                                    curvasFallidas++;
-                                    avisosCurvas.Add($"• PIV {FormatearAbscisa(pviDef.Station)}: sin espacio suficiente entre tangentes verticales; quedó como quiebre recto.");
                                 }
                             }
-                            else
-                            {
-                                rasante.PVIs.AddPVI(pviDef.Station, pviDef.Elevation);
-                                pvtAnterior = pviDef.Station;
-                            }
+
                         }
 
-                    }
+                        string profileViewName = "Perfil_" + alignment.Name + "_" + sufijoPerfil;
+                        if (!TryCrearVistaDePerfil(civilDoc, alignId, ppr.Value, profileViewName, bandSetStyleId, profileViewStyleId, out string errorVista))
+                            throw new System.Exception($"No se pudo crear la vista de perfil: {errorVista}");
+                        tr.Commit();
 
-                    string profileViewName = "Perfil_" + alignment.Name + "_" + sufijoPerfil;
-                    if (!TryCrearVistaDePerfil(civilDoc, alignId, ppr.Value, profileViewName, bandSetStyleId, profileViewStyleId, out string errorVista))
-                        throw new System.Exception($"No se pudo crear la vista de perfil: {errorVista}");
-                    tr.Commit();
-
-                    string mensaje = $"🚀 ¡Rasante Creada Exitosamente! ({rasanteName})\n\n• Curvas verticales generadas: {curvasGeneradas}";
-                    bool hayIncidencias = curvasFallidas > 0 || curvasAcortadas > 0;
-                    if (hayIncidencias)
-                    {
-                        if (curvasFallidas > 0)
-                            mensaje += $"\n• PIV sin ninguna curva por falta de espacio: {curvasFallidas}";
-                        if (curvasAcortadas > 0)
-                            mensaje += $"\n• Curvas instaladas pero ACORTADAS por falta de espacio (no cumplen K mínimo): {curvasAcortadas}";
-                        mensaje += "\n\n" + string.Join("\n", avisosCurvas) + "\n" + string.Join("\n", avisosAcortadas) +
-                                   "\n\nRevise esos vértices: puede requerirse alargar la tangente vertical o suavizar la línea de rasante.";
-                        MessageBox.Show(mensaje, "Rasante - Revisar", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        string mensaje = $"🚀 ¡Rasante Creada Exitosamente! ({rasanteName})\n\n• Curvas verticales generadas: {curvasGeneradas}";
+                        bool hayIncidencias = curvasFallidas > 0 || curvasAcortadas > 0;
+                        if (hayIncidencias)
+                        {
+                            if (curvasFallidas > 0)
+                                mensaje += $"\n• PIV sin ninguna curva por falta de espacio: {curvasFallidas}";
+                            if (curvasAcortadas > 0)
+                                mensaje += $"\n• Curvas instaladas pero ACORTADAS por falta de espacio (no cumplen K mínimo): {curvasAcortadas}";
+                            mensaje += "\n\n" + string.Join("\n", avisosCurvas) + "\n" + string.Join("\n", avisosAcortadas) +
+                                       "\n\nRevise esos vértices: puede requerirse alargar la tangente vertical o suavizar la línea de rasante.";
+                            MessageBox.Show(mensaje, "Rasante - Revisar", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+                        else
+                        {
+                            MessageBox.Show(mensaje, "INVIAS", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
                     }
-                    else
-                    {
-                        MessageBox.Show(mensaje, "INVIAS", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
                 }
                 catch (System.Exception ex)
                 {
@@ -2844,7 +2863,8 @@ namespace AsistenteDisenoINVIAS
             CivilDocument civilDoc = CivilApplication.ActiveDocument;
 
             ObjectId alignId = ObtenerEjeSeleccionado(db, civilDoc);
-            if (alignId == ObjectId.Null) {
+            if (alignId == ObjectId.Null)
+            {
                 MessageBox.Show("No se encontró el Eje Central válido.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -2917,11 +2937,26 @@ namespace AsistenteDisenoINVIAS
                             double v2x = arc.EndPoint.X - arc.CenterPoint.X; double v2y = arc.EndPoint.Y - arc.CenterPoint.Y;
                             bool isRight = ((v1x * v2y) - (v1y * v2x)) < 0;
 
-                            curves.Add(new CurveData {
-                                Elem = $"C-{arcIdx++}", StartSt = arc.StartStation, EndSt = arc.EndStation,
-                                Radius = R, S_max = S, RequiereSobreancho = aplicaSobreancho, E_max = eCurva, Lt = Lt, IsRight = isRight,
-                                Delta = deltaGrados, Length = arc.Length, TieneEspiral = tieneEspiral, LeEntrada = leEntrada, LeSalida = leSalida,
-                                AEntrada = aEntrada, ASalida = aSalida, AMinNormativo = aMinNorm, AMaxNormativo = aMaxNorm
+                            curves.Add(new CurveData
+                            {
+                                Elem = $"C-{arcIdx++}",
+                                StartSt = arc.StartStation,
+                                EndSt = arc.EndStation,
+                                Radius = R,
+                                S_max = S,
+                                RequiereSobreancho = aplicaSobreancho,
+                                E_max = eCurva,
+                                Lt = Lt,
+                                IsRight = isRight,
+                                Delta = deltaGrados,
+                                Length = arc.Length,
+                                TieneEspiral = tieneEspiral,
+                                LeEntrada = leEntrada,
+                                LeSalida = leSalida,
+                                AEntrada = aEntrada,
+                                ASalida = aSalida,
+                                AMinNormativo = aMinNorm,
+                                AMaxNormativo = aMaxNorm
                             });
                         }
                     }
@@ -2950,13 +2985,14 @@ namespace AsistenteDisenoINVIAS
                                 if (!c.RequiereSobreancho) continue;
 
                                 double stFullStart = c.StartSt + fraccionEnCurva * c.Lt;
-                                double stFullEnd   = c.EndSt - fraccionEnCurva * c.Lt;
+                                double stFullEnd = c.EndSt - fraccionEnCurva * c.Lt;
                                 if (stFullStart >= stFullEnd) { double mid = (c.StartSt + c.EndSt) / 2.0; stFullStart = mid - 0.5; stFullEnd = mid + 0.5; }
 
                                 Alignment targetAlign = c.IsRight ? rightAlign : leftAlign;
                                 double targetWidth = anchoCarril + c.S_max;
 
-                                try {
+                                try
+                                {
                                     targetAlign.OffsetAlignmentInfo.AddWidening(stFullStart, stFullEnd, targetWidth);
                                     dynamic offsetInfo = targetAlign.OffsetAlignmentInfo;
 
@@ -2980,37 +3016,49 @@ namespace AsistenteDisenoINVIAS
 
                                         bool dentroDeVentana = !double.IsNaN(regStart) && !double.IsNaN(regEnd) &&
                                                                 regStart < c.EndSt + 2.0 * c.Lt && regEnd > c.StartSt - 2.0 * c.Lt;
-                                        if (dentroDeVentana && !double.IsNaN(regWidth)) {
+                                        if (dentroDeVentana && !double.IsNaN(regWidth))
+                                        {
                                             double diff = Math.Abs(regWidth - targetWidth);
                                             if (diff < mejorDiferenciaAncho) { mejorDiferenciaAncho = diff; mejorRegion = region; }
                                         }
                                     }
 
                                     bool transicionAjustada = false;
-                                    if (mejorRegion != null) {
-                                        try {
+                                    if (mejorRegion != null)
+                                    {
+                                        try
+                                        {
                                             dynamic entry = mejorRegion.EntryTransition;
-                                            if (entry != null) {
+                                            if (entry != null)
+                                            {
                                                 entry.Length = c.Lt;
                                                 transicionAjustada = true;
                                             }
-                                        } catch (System.Exception exEntry) {
+                                        }
+                                        catch (System.Exception exEntry)
+                                        {
                                             ed.WriteMessage($"\n[INVIAS] Aviso: fallo al fijar EntryTransition.Length en {c.Elem}: {exEntry.Message}");
                                         }
-                                        try {
+                                        try
+                                        {
                                             dynamic exit = mejorRegion.ExitTransition;
-                                            if (exit != null) {
+                                            if (exit != null)
+                                            {
                                                 exit.Length = c.Lt;
                                                 transicionAjustada = true;
                                             }
-                                        } catch (System.Exception exExit) {
+                                        }
+                                        catch (System.Exception exExit)
+                                        {
                                             ed.WriteMessage($"\n[INVIAS] Aviso: fallo al fijar ExitTransition.Length en {c.Elem}: {exExit.Message}");
                                         }
                                     }
 
                                     if (!transicionAjustada)
                                         ed.WriteMessage($"\n[INVIAS] Aviso: la curva {c.Elem} quedó con transición de sobreancho por defecto (longitud 0). Revise el diagnóstico de regiones anterior y ajuste manualmente en el editor de Offset Alignment (Geometry Editor > Widenings).");
-                                } catch (System.Exception exWiden) {
+                                }
+                                catch (System.Exception exWiden)
+                                {
                                     ed.WriteMessage($"\n[INVIAS] Aviso: no se pudo generar el sobreancho en {c.Elem} ({exWiden.Message}).");
                                 }
                             }
@@ -3045,7 +3093,8 @@ namespace AsistenteDisenoINVIAS
                                 }
                             }
                         }
-                    } catch { }
+                    }
+                    catch { }
                     tr.Commit();
                     int nCurvasConSobreancho = curves.Count(c => c.RequiereSobreancho);
                     MessageBox.Show($"🚀 ¡Transiciones y Peraltes C3D Generados!\n\n• Curvas con sobreancho (R < 160 m): {nCurvasConSobreancho} de {curves.Count}\n• Longitud de transición Lt aplicada según numeral 3.2.2 INVIAS.\n• Revise la ventana de comandos por avisos de curvas específicas.", "INVIAS", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -3079,7 +3128,8 @@ namespace AsistenteDisenoINVIAS
                     if (curveIndex >= curves.Count) break;
                     CurveData c = curves[curveIndex];
 
-                    for (int i = supCurve.CriticalStations.Count - 1; i >= 0; i--) {
+                    for (int i = supCurve.CriticalStations.Count - 1; i >= 0; i--)
+                    {
                         try { supCurve.CriticalStations.RemoveAt(i); } catch { }
                     }
 
@@ -3092,7 +3142,7 @@ namespace AsistenteDisenoINVIAS
                     double outS = eDec;
                     double inS = -eDec;
 
-                    #pragma warning disable CS0618
+#pragma warning disable CS0618
                     supCurve.CriticalStations.Add(st0, SuperelevationCriticalStationType.EndNormalCrown);
                     supCurve.CriticalStations.Add(st1, SuperelevationCriticalStationType.BeginFullSuper);
                     supCurve.CriticalStations.Add(st2, SuperelevationCriticalStationType.EndFullSuper);
@@ -3111,7 +3161,7 @@ namespace AsistenteDisenoINVIAS
                             cs.SetSlope(rightLane, c.IsRight ? inS : outS);
                         }
                     }
-                    #pragma warning restore CS0618
+#pragma warning restore CS0618
 
                     curveIndex++;
                 }
@@ -3131,7 +3181,8 @@ namespace AsistenteDisenoINVIAS
             CivilDocument civilDoc = CivilApplication.ActiveDocument;
 
             ObjectId alignId = ObtenerEjeSeleccionado(db, civilDoc);
-            if (alignId == ObjectId.Null) {
+            if (alignId == ObjectId.Null)
+            {
                 MessageBox.Show("No se encontró el Eje Central válido para generar la memoria.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -3199,9 +3250,13 @@ namespace AsistenteDisenoINVIAS
                                     double azRad = Math.Atan2(dE, dN);
                                     if (azRad < 0) azRad += 2.0 * Math.PI;
 
-                                    alignElements.Add(new AlignElem {
-                                        Elem = $"T-{lineIdx++}", Type = "Recta", StartSt = line.StartStation,
-                                        EndSt = line.EndStation, Length = line.Length,
+                                    alignElements.Add(new AlignElem
+                                    {
+                                        Elem = $"T-{lineIdx++}",
+                                        Type = "Recta",
+                                        StartSt = line.StartStation,
+                                        EndSt = line.EndStation,
+                                        Length = line.Length,
                                         Parameter = "Azimut: " + FormatearGMS(azRad * (180.0 / Math.PI))
                                     });
                                 }
@@ -3251,30 +3306,65 @@ namespace AsistenteDisenoINVIAS
                                     double piY = arc.StartPoint.Y + tangent * Math.Sin(tangAngle);
                                     double piStation = arc.StartStation + tangent;
 
-                                    pis.Add(new PIData {
-                                        Id = piCounter++, Station = piStation, North = piY, East = piX, Delta = deltaRad * (180.0 / Math.PI)
+                                    pis.Add(new PIData
+                                    {
+                                        Id = piCounter++,
+                                        Station = piStation,
+                                        North = piY,
+                                        East = piX,
+                                        Delta = deltaRad * (180.0 / Math.PI)
                                     });
 
                                     string elemName = $"C-{arcIdx++}";
-                                    curves.Add(new CurveData {
-                                        Elem = elemName, StartSt = arc.StartStation, EndSt = arc.EndStation,
-                                        Radius = R, S_max = S, RequiereSobreancho = aplicaSobreancho, E_max = eCurva, Lt = Lt_Aplicada, IsRight = isRight,
-                                        Delta = deltaGrados, Length = arc.Length, Tangent = tangent,
-                                        Vch = vtr, Ftmax = fMax, Rmin = rMinCalculado, AsMax = deltaSMax, AsCalc = asCalc, LtMin = Lt_Aplicada,
-                                        TieneEspiral = tieneEspiral, LeEntrada = leEntrada, LeSalida = leSalida,
-                                        AEntrada = aEntrada, ASalida = aSalida, AMinNormativo = aMinNorm, AMaxNormativo = aMaxNorm
+                                    curves.Add(new CurveData
+                                    {
+                                        Elem = elemName,
+                                        StartSt = arc.StartStation,
+                                        EndSt = arc.EndStation,
+                                        Radius = R,
+                                        S_max = S,
+                                        RequiereSobreancho = aplicaSobreancho,
+                                        E_max = eCurva,
+                                        Lt = Lt_Aplicada,
+                                        IsRight = isRight,
+                                        Delta = deltaGrados,
+                                        Length = arc.Length,
+                                        Tangent = tangent,
+                                        Vch = vtr,
+                                        Ftmax = fMax,
+                                        Rmin = rMinCalculado,
+                                        AsMax = deltaSMax,
+                                        AsCalc = asCalc,
+                                        LtMin = Lt_Aplicada,
+                                        TieneEspiral = tieneEspiral,
+                                        LeEntrada = leEntrada,
+                                        LeSalida = leSalida,
+                                        AEntrada = aEntrada,
+                                        ASalida = aSalida,
+                                        AMinNormativo = aMinNorm,
+                                        AMaxNormativo = aMaxNorm
                                     });
 
-                                    alignElements.Add(new AlignElem {
-                                        Elem = elemName, Type = tieneEspiral ? "Curva espiralizada" : "Curva", StartSt = arc.StartStation,
-                                        EndSt = arc.EndStation, Length = arc.Length, Parameter = "Radio: " + R.ToString("F2") + "m"
+                                    alignElements.Add(new AlignElem
+                                    {
+                                        Elem = elemName,
+                                        Type = tieneEspiral ? "Curva espiralizada" : "Curva",
+                                        StartSt = arc.StartStation,
+                                        EndSt = arc.EndStation,
+                                        Length = arc.Length,
+                                        Parameter = "Radio: " + R.ToString("F2") + "m"
                                     });
                                 }
                                 else if (TryExtraerDatosEspiral(hoja, out double leLen, out double aParam, out double eStartSt, out double eEndSt))
                                 {
-                                    alignElements.Add(new AlignElem {
-                                        Elem = $"E-{espIdx++}", Type = "Espiral", StartSt = eStartSt,
-                                        EndSt = eEndSt, Length = leLen, Parameter = aParam > 0 ? $"A = {aParam:F2}" : ""
+                                    alignElements.Add(new AlignElem
+                                    {
+                                        Elem = $"E-{espIdx++}",
+                                        Type = "Espiral",
+                                        StartSt = eStartSt,
+                                        EndSt = eEndSt,
+                                        Length = leLen,
+                                        Parameter = aParam > 0 ? $"A = {aParam:F2}" : ""
                                     });
                                 }
                             }
@@ -3294,29 +3384,33 @@ namespace AsistenteDisenoINVIAS
 
                                 // Atrapar todas las curvas (parábolas) dibujadas en la rasante
                                 List<dynamic> profileCurves = new List<dynamic>();
-                                try {
-                                    foreach (dynamic ent in rasante.Entities) {
+                                try
+                                {
+                                    foreach (dynamic ent in rasante.Entities)
+                                    {
                                         string tName = ent.GetType().Name.ToLower();
-                                        if (tName.Contains("parabola") || tName.Contains("curve")) {
+                                        if (tName.Contains("parabola") || tName.Contains("curve"))
+                                        {
                                             profileCurves.Add(ent);
                                         }
                                     }
-                                } catch { }
+                                }
+                                catch { }
 
                                 // Omitir el primer y último punto (K0+000 y K Final nunca tienen curva vertical)
                                 for (int i = 1; i < rasante.PVIs.Count - 1; i++)
                                 {
                                     ProfilePVI pvi = rasante.PVIs[i];
                                     double sta = 0.0;
-                                    #pragma warning disable CS0618
-                                    try { sta = pvi.RawStation; } catch { try { sta = pvi.Station; } catch {} }
-                                    #pragma warning restore CS0618
+#pragma warning disable CS0618
+                                    try { sta = pvi.RawStation; } catch { try { sta = pvi.Station; } catch { } }
+#pragma warning restore CS0618
 
                                     double g1 = 0, g2 = 0, A = 0, Lv = 0, K = 0;
                                     string tipo = "Recto";
 
-                                    try { g1 = pvi.GradeIn * 100.0; } catch {}
-                                    try { g2 = pvi.GradeOut * 100.0; } catch {}
+                                    try { g1 = pvi.GradeIn * 100.0; } catch { }
+                                    try { g2 = pvi.GradeOut * 100.0; } catch { }
 
                                     A = Math.Abs(g2 - g1);
                                     if (A > 0.01) tipo = g1 > g2 ? "Convexa" : "Cóncava";
@@ -3330,18 +3424,22 @@ namespace AsistenteDisenoINVIAS
                                     // lo hizo este asistente o el usuario directamente en Civil3D.
                                     bool origenConfiable = false;
                                     double mejorDistancia = double.MaxValue;
-                                    foreach (var curve in profileCurves) {
-                                        try {
+                                    foreach (var curve in profileCurves)
+                                    {
+                                        try
+                                        {
                                             double sStart = curve.StartStation;
                                             double sEnd = curve.EndStation;
                                             double centro = (sStart + sEnd) / 2.0;
                                             double dist = Math.Abs(sta - centro);
-                                            if (dist < mejorDistancia && sta > sStart - 0.5 && sta < sEnd + 0.5) {
+                                            if (dist < mejorDistancia && sta > sStart - 0.5 && sta < sEnd + 0.5)
+                                            {
                                                 mejorDistancia = dist;
                                                 Lv = TryLeerLongitudCurvaVertical(curve, out double lvGeom) ? lvGeom : curve.Length;
                                                 origenConfiable = true;
                                             }
-                                        } catch { }
+                                        }
+                                        catch { }
                                     }
 
                                     // 2) Respaldo: si no se pudo leer la geometría real (p. ej. nombres de
@@ -3361,7 +3459,8 @@ namespace AsistenteDisenoINVIAS
                                     // y se avisa en la ventana de comandos para revisión manual, en vez de
                                     // reportar silenciosamente "Falta Curva" cuando pudo tratarse solo de
                                     // una lectura fallida de la geometría de Civil3D.
-                                    if (Lv < 1.0 && A >= 0.5) {
+                                    if (Lv < 1.0 && A >= 0.5)
+                                    {
                                         double kAplicado = (tipo == "Convexa") ? kminConvexa : kminConcava;
                                         Lv = Math.Max(kAplicado * A, lMinCurva);
                                         if (!origenConfiable)
@@ -3370,10 +3469,19 @@ namespace AsistenteDisenoINVIAS
 
                                     if (A > 0.01 && Lv > 0) K = Lv / A;
 
-                                    pvis.Add(new PviData {
-                                        Id = pviCount++, Station = sta, Elevation = pvi.Elevation,
-                                        GradeIn = g1, GradeOut = g2, A = A, CurveLength = Lv, K = K, Type = tipo,
-                                        KminNorma = (tipo == "Convexa" ? kminConvexa : kminConcava), LminNorma = lMinCurva
+                                    pvis.Add(new PviData
+                                    {
+                                        Id = pviCount++,
+                                        Station = sta,
+                                        Elevation = pvi.Elevation,
+                                        GradeIn = g1,
+                                        GradeOut = g2,
+                                        A = A,
+                                        CurveLength = Lv,
+                                        K = K,
+                                        Type = tipo,
+                                        KminNorma = (tipo == "Convexa" ? kminConvexa : kminConcava),
+                                        LminNorma = lMinCurva
                                     });
                                 }
                             }
@@ -3517,7 +3625,8 @@ namespace AsistenteDisenoINVIAS
             sb.AppendLine("<table>");
             sb.AppendLine("<tr><th colspan='4'>Tabla 10. Elementos de alineamiento Horizontal</th></tr>");
             sb.AppendLine("<tr><th>N° / Tipo</th><th>Longitud</th><th>P.K. inicial</th><th>P.K. final</th></tr>");
-            foreach (var el in alignElements) {
+            foreach (var el in alignElements)
+            {
                 sb.AppendLine($"<tr><td>{el.Type} {el.Elem}</td><td>{el.Length:F2} m</td><td>{FormatearAbscisa(el.StartSt)}</td><td>{FormatearAbscisa(el.EndSt)}</td></tr>");
             }
             sb.AppendLine("</table>");
@@ -3534,7 +3643,8 @@ namespace AsistenteDisenoINVIAS
             sb.AppendLine("<table>");
             sb.AppendLine("<tr><th colspan='6'>Tabla 12. Verificación de Radios mínimos (Tablas 3.1 a 3.3 MDG INVIAS 2008)</th></tr>");
             sb.AppendLine("<tr><th>ID</th><th>Radio de Curva Rc (m)</th><th>Velocidad Específica (km/h)</th><th>Peralte asignado (%)</th><th>Radio Mín. RCmín (m)</th><th>¿Cumple?</th></tr>");
-            foreach (var c in curves) {
+            foreach (var c in curves)
+            {
                 string cumple = c.Radius >= c.Rmin ? "Si Cumple" : "No Cumple";
                 sb.AppendLine($"<tr><td>{c.Elem}</td><td>{c.Radius:F2}</td><td>{c.Vch}</td><td>{c.E_max:F1}%</td><td>{c.Rmin:F1}</td><td>{cumple}</td></tr>");
             }
@@ -3557,7 +3667,8 @@ namespace AsistenteDisenoINVIAS
             sb.AppendLine("<table>");
             sb.AppendLine("<tr><th colspan='4'>Tabla 11. Peralte asignado por curva (Tablas 3.4/3.5 MDG INVIAS 2008)</th></tr>");
             sb.AppendLine("<tr><th>ID</th><th>Radio Rc (m)</th><th>Peralte asignado e (%)</th><th>Peralte máximo del proyecto e<sub>máx</sub> (%)</th></tr>");
-            foreach (var c in curves) {
+            foreach (var c in curves)
+            {
                 sb.AppendLine($"<tr><td>{c.Elem}</td><td>{c.Radius:F2}</td><td>{c.E_max:F2}%</td><td>{eMaxProyecto:F1}%</td></tr>");
             }
             sb.AppendLine("</table>");
@@ -3601,7 +3712,8 @@ namespace AsistenteDisenoINVIAS
                     sb.AppendLine("<table>");
                     sb.AppendLine("<tr><th colspan='6'>Tabla 13. Sobreancho requerido por curva</th></tr>");
                     sb.AppendLine("<tr><th>ID</th><th>Radio Rc (m)</th><th>Δ (°)</th><th>¿Requiere sobreancho? (R&lt;160 m)</th><th>Sobreancho S (m)</th><th>Ancho de calzada final (m)</th></tr>");
-                    foreach (var c in curves) {
+                    foreach (var c in curves)
+                    {
                         string requiere = c.RequiereSobreancho ? "Sí" : "No";
                         sb.AppendLine($"<tr><td>{c.Elem}</td><td>{c.Radius:F2}</td><td>{c.Delta:F2}</td><td>{requiere}</td><td>{c.S_max:F2}</td><td>{(anchoCarril * 2 + c.S_max):F2}</td></tr>");
                     }
@@ -3619,7 +3731,8 @@ namespace AsistenteDisenoINVIAS
             sb.AppendLine("<table>");
             sb.AppendLine("<tr><th colspan='8'>Tabla 21. Longitud de transición aplicada</th></tr>");
             sb.AppendLine("<tr><th>ID</th><th>Radio [Rc]</th><th>Origen de Lt</th><th>Le entrada (m)</th><th>Le salida (m)</th><th>Longitud Transición [Lt] (m)</th><th>Δs Máx. Normativo (%)</th><th>¿Cumple?</th></tr>");
-            foreach (var c in curves) {
+            foreach (var c in curves)
+            {
                 string cumple = c.AsCalc <= c.AsMax + 0.001 ? "Si Cumple" : "No Cumple";
                 string origen = c.TieneEspiral ? "Espiral real (Le)" : "Tabla 3.6 (Δs)";
                 sb.AppendLine($"<tr><td>{c.Elem}</td><td>{c.Radius:F2}</td><td>{origen}</td><td>{(c.TieneEspiral ? c.LeEntrada.ToString("F2") : "-")}</td><td>{(c.TieneEspiral ? c.LeSalida.ToString("F2") : "-")}</td><td>{c.Lt:F2}</td><td>{c.AsMax:F2}%</td><td>{cumple}</td></tr>");
@@ -3679,25 +3792,32 @@ namespace AsistenteDisenoINVIAS
             sb.AppendLine("<table>");
             sb.AppendLine("<tr><th colspan='12'>Tabla 30. Valores de Parámetro K y Longitud de Curva (Tabla 4.4 MDG INVIAS 2008)</th></tr>");
             sb.AppendLine("<tr><th>Vértice PIV</th><th>Abscisa PIV</th><th>Cota PIV (m)</th><th>Pte. Entrada p1 (%)</th><th>Pte. Salida p2 (%)</th><th>Dif. Algebraica A (%)</th><th>Tipo de Curva</th><th>Parámetro K</th><th>Longitud Lv (m)</th><th>K Mínimo Normativo</th><th>¿Cumple K?</th><th>Drenaje (K≤50)</th></tr>");
-            if (pvis.Count == 0) {
+            if (pvis.Count == 0)
+            {
                 sb.AppendLine("<tr><td colspan='12'><i>No se detectaron curvas verticales en el perfil.</i></td></tr>");
-            } else {
-                foreach (var pvi in pvis) {
+            }
+            else
+            {
+                foreach (var pvi in pvis)
+                {
                     string cumple = "N/A";
                     string kDis = "-";
                     string lDis = "Recto";
                     string drenaje = "N/A";
 
-                    if(pvi.CurveLength > 0.01) {
+                    if (pvi.CurveLength > 0.01)
+                    {
                         cumple = pvi.K >= pvi.KminNorma ? "Si Cumple" : "No Cumple";
                         kDis = pvi.K.ToString("F2");
                         lDis = pvi.CurveLength.ToString("F2");
                         drenaje = pvi.K <= 50.0 ? "Cumple" : "Revisar drenaje";
                     }
-                    else if(pvi.A >= 0.5) {
+                    else if (pvi.A >= 0.5)
+                    {
                         cumple = "No Cumple (Falta Curva)";
                     }
-                    else if(pvi.A < 0.5 && pvi.GradeIn != 0 && pvi.GradeOut != 0) {
+                    else if (pvi.A < 0.5 && pvi.GradeIn != 0 && pvi.GradeOut != 0)
+                    {
                         cumple = "Recto (A<0.5%)";
                     }
 
@@ -4271,11 +4391,13 @@ namespace AsistenteDisenoINVIAS
             return t.ToString();
         }
 
-        private string FormatearAbscisa(double station) {
+        private string FormatearAbscisa(double station)
+        {
             int km = (int)(station / 1000); double m = station % 1000; return $"K{km}+{m:000.00}";
         }
 
-        private string FormatearGMS(double valDeg) {
+        private string FormatearGMS(double valDeg)
+        {
             int d = (int)valDeg; double restM = (Math.Abs(valDeg) - Math.Abs(d)) * 60.0; int m = (int)restM; double s = (restM - m) * 60.0; return $"{d}°{m:00}'{s:00.0}\"";
         }
     }
